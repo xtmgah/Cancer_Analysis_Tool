@@ -1,0 +1,1162 @@
+suppressMessages(library(shiny))
+suppressMessages(library(shinyjs))
+suppressMessages(library(rhandsontable))
+suppressMessages(library(parallel))
+
+
+rm(list=ls(all=TRUE))
+
+# Set the path for working directory
+setwd('..')
+
+
+cat('\n--------------------------------------------------------------------------------------------\n')
+cat('--------------------------------------------------------------------------------------------\n')
+cat('----------------------------------- Cancer Analysis Tool -----------------------------------\n')
+cat('--------------------------------------------------------------------------------------------\n')
+cat('--------------------------------------------------------------------------------------------\n')
+
+cat(paste0('\nCurrent working directory: ',getwd(),'\n'))
+
+
+write.table(Sys.getpid(),file = 'pid.txt',row.names = FALSE,col.names = FALSE,append = TRUE)
+
+############################################################################################################################################
+###########################################################                      ###########################################################
+###########################################################   Global variables   ###########################################################
+###########################################################                      ###########################################################
+############################################################################################################################################
+
+ICGC_required_columns <- c('icgc_sample_id','chromosome','chromosome_start',
+                           'chromosome_end','reference_genome_allele','mutated_to_allele')
+
+Standard_columns <- c('sample_id','chromosome','position','reference','mutated_to')
+
+
+
+
+# a <- read.table('data/Breast_whole.csv',sep = ',',header = F)
+# a <- a[,-c(1,5,8)]
+# colnames(a) <- c('sample_id','chromosome','position','reference','mutated_to')
+# write.table(a,'data/Breast_whole.csv',sep = ',',row.names = F,col.names = T)
+
+
+
+
+num2str <- function(num)
+{
+  nuc <- c('A','C','G','T')
+  mut <- c('C','C','C','T','T','T')
+  mutation <- mut[(num %/% 16)+1]
+  Fl <- nuc[((num %% 16) %/% 4) +1]
+  Fr <- nuc[((num %% 16) %% 4) +1]
+  return(paste(Fl,mutation,Fr))
+}
+c_a <- (16*0+1):(16*1)
+names(c_a) <- num2str(c_a-1)
+c_g <- (16*1+1):(16*2)
+names(c_g) <- num2str(c_g-1)
+c_t <- (16*2+1):(16*3)
+names(c_t) <- num2str(c_t-1)
+t_a <- (16*3+1):(16*4)
+names(t_a) <- num2str(t_a-1)
+t_c <- (16*4+1):(16*5)
+names(t_c) <- num2str(t_c-1)
+t_g <- (16*5+1):(16*6)
+names(t_g) <- num2str(t_g-1)
+
+
+initial_table_5mer_motifs_for_clst <- data.frame(Selected = FALSE,
+                                                 Flanking1 = factor(rep('',10),levels = c('A','C','G','T')),
+                                                 Flanking2 = factor(rep('',10),levels = c('A','C','G','T')),
+                                                 Mutation = factor(rep('',10),levels = c('C > A',
+                                                                                         'C > G',
+                                                                                         'C > T',
+                                                                                         'T > A',
+                                                                                         'T > C',
+                                                                                         'T > G')),
+                                                 Flanking3 = factor(rep('',10),levels = c('A','C','G','T')),
+                                                 Flanking4 = factor(rep('',10),levels = c('A','C','G','T'))) 
+
+
+initial_table_3mer_motifs_for_clst <- data.frame(Selected = FALSE,
+                                                 Flanking1 = factor(rep('',10),levels = c('A','C','G','T')),
+                                                 Mutation = factor(rep('',10),levels = c('C > A',
+                                                                                         'C > G',
+                                                                                         'C > T',
+                                                                                         'T > A',
+                                                                                         'T > C',
+                                                                                         'T > G')),
+                                                 Flanking2 = factor(rep('',10),levels = c('A','C','G','T'))) 
+
+
+
+
+
+
+
+#############################################################################################################################################
+###########################################################                       ###########################################################
+###########################################################   UI configurations   ###########################################################
+###########################################################                       ###########################################################
+#############################################################################################################################################
+
+ui <- fluidPage(
+
+  useShinyjs(),
+  
+  div(id = "preprocessing_ui",
+      navbarPage(inverse=TRUE,"Cancer Research",
+                 tabPanel("Preprocessing input file",
+
+                          wellPanel(id="panelA",
+                            tags$div(class="header", checked=NA,tags$h4(
+                              strong('Put your data file inside "data" folder. Then type the name of input file (with extension) below:'),
+                              style="color:#0060DB")),
+                            textInput("input_data_file_name", label=NA),
+                            hr(),
+                            tags$div(class="header", checked=NA,tags$h4(
+                              strong("Select the input format:"),
+                              style="color:#0060DB")),
+                            radioButtons(inputId="file_format",
+                                         label=NA,
+                                         choices=c('ICGC','TCGA','Other'),selected = 'ICGC'),
+                            conditionalPanel("input.file_format=='Other'",
+                                             tags$div(class="header", checked=NA,tags$h6(
+                                               strong("* See the software manual to know about valid input format."),
+                                               style="color:#0060DB"))
+                                             ),
+                            hr(),
+                            
+                            tags$div(class="header", checked=NA,tags$h4(
+                              strong("How many cancer types are included in this dataset?"),style="color:#0060DB")),
+                            
+                            
+                            radioButtons(inputId="how_many_cancers",
+                                         label=NA,
+                                         choices = list("Single Cancer Type" = 1,
+                                                        "Multiple Cancer Types" = 2),
+                                         selected = 1),
+                            
+                            hr(),
+                            
+                            tags$div(class="header", checked=NA,tags$h4(
+                              strong("How many CPU cores do you want to use?"),style="color:#0060DB")),
+                            
+                             sliderInput("CPU_cores", "Number of CPU cores for parallelization",
+                                         min =1 , max = detectCores(),
+                                         value = ceiling(detectCores()/2), step = 1),
+                            
+                            hr(),
+                            
+                            actionButton("see_input_file_name", "Import new data and perform preprocessing",class="btn-success"),
+                            
+                            textOutput("error_for_input_file_name"),
+                            tags$head(tags$style("#error_for_input_file_name{color: red;font-size: 100%;}")),
+                            textOutput("success_for_input_file_name"),
+                            tags$head(tags$style("#success_for_input_file_name{color: #1BDB00;font-size: 100%;}")),
+                            
+                            hr(),
+                            
+                            actionButton("skip_preprocessing", "Don't import new data\nand skip preprocessing",class="btn-warning")
+                            ),
+                         
+                          
+                          shinyjs::hidden(
+                            wellPanel(id="panelB",
+                                      
+                                      
+                                      tags$div(class="header", checked=NA,
+                                               tags$h4(strong(paste0('The tool is going to delete all contents of "output" and "result" folders.', 
+                                                                     ' You can make a backup of them before continuing.',
+                                                                     ' When you are ready, press "Continue".')),
+                                                       style="color:#E40038")),
+                                      
+                                      hr(),
+                                      
+                                      actionButton("continue_with_preprocessing", "Continue",class="btn-success")
+                                      
+                                      )
+                            ),
+                          
+                          
+                          shinyjs::hidden(
+                            wellPanel(id="panelC",
+                        
+                                      tags$div(class="header", checked=NA,
+                                               tags$h4(strong('Select one of the options for "signatures" folder:'),
+                                                       style="color:#0060DB")),
+                                      
+                                      radioButtons(inputId="keep_or_not_signatures",
+                                                   label=NA,
+                                                   choices = list("Clear the previously obtained results for signatures " = 1,
+                                                                  "Keep the previously obtained results for 3-mer signatures only" = 2,
+                                                                  "Keep the previously obtained results for 5-mer signatures only" = 3,
+                                                                  "Keep the previously obtained results for both types of signatures" = 4),
+                                                   selected = 1),
+                                      
+                                      hr(),
+                        
+                                      tags$div(class="header", checked=NA,
+                                               tags$h4(strong('Select one of the options for "clustering" folder:'),
+                                                       style="color:#0060DB")),
+                        
+                                      radioButtons(inputId="keep_or_not_clustering",
+                                                   label=NA,
+                                                   choices = list("Clear the previously obtained results for clustering " = 1, 
+                                                                  "Keep the previously obtained results for clustering" = 2), 
+                                                   selected = 1),
+                                      
+                                      hr(),
+                        
+                                      tags$div(class="header", checked=NA,
+                                               tags$h4(strong('Select one of the options for "simulation" folder:'),
+                                                       style="color:#0060DB")),
+                                      
+                                      radioButtons(inputId="keep_or_not_simulation",
+                                                   label=NA,
+                                                   choices = list("Clear the previously obtained results for simulation " = 1, 
+                                                                  "Keep the previously obtained results for simulation" = 2), 
+                                                   selected = 1), 
+                                      
+                                      hr(),hr(),
+                                      
+                                      actionButton("continue", "Continue",class="btn-success")
+                                      
+                                      )
+                            )
+                          ),
+                 
+                 tags$style(type = 'text/css',
+                            '.navbar {background-color: #383838;}',
+                            '.navbar-default .navbar-brand {background-color: #383838;color: #FF8300;}')
+                 )
+      ),
+  
+  #-----------------------------------------------------------------------------------------------------------------------------------------
+  
+  hidden(div(id = "processing_ui",
+  navbarPage(inverse=TRUE,"Cancer Research",
+  tabPanel("3-mer signatures",
+           
+           titlePanel("Extract mutational signatures based on 3-mer motifs"),
+           
+           wellPanel(id="panel_3mer_options",
+                     tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
+                                                                 style="color:#0060DB")),
+                     radioButtons(inputId="accuracy_3mer",
+                                  label=NA,
+                                  choices=c('Moderate','High','Very High')),#,'Custom'))
+                     
+                     conditionalPanel("input.accuracy_3mer == 'Moderate'",
+                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
+                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
+                     
+                     conditionalPanel("input.accuracy_3mer == 'High'",
+                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
+                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
+                     
+                     conditionalPanel("input.accuracy_3mer == 'Very High'",
+                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
+                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
+                     
+                     
+                  
+                     
+                     # conditionalPanel("input.accuracy_3mer == 'Custom'",
+                     #                  sliderInput("NMF_iters_3mer", "Number of iterations for NMF step",
+                     #                  min = 10, max = 100000,
+                     #                  value = 10, step = 100)),
+                     
+                     # conditionalPanel("input.accuracy_3mer == 'Custom'",
+                     #                  sliderInput("Boot_iters_3mer", "Number of iterations for Bootstrap step",
+                     #                  min = 10, max = 500,
+                     #                  value = 10, step = 10),hr()),
+                     
+                     fluidRow(column(6,actionButton("start_3mer", "Start calculation",width = '150px',class="btn-success")))
+                     ),
+           
+           hr(),
+           
+           shinyjs::hidden(
+             wellPanel(id="panel_3mer_results_sig",
+                       lapply(1:30, function(i) {plotOutput(paste0('p_3mer', i))}),
+                       hr(),
+                       downloadButton("down_sig_plot_3mer", "Download the plots",class="btn-primary")
+                       )
+             ),
+           
+           shinyjs::hidden(
+             wellPanel(id='final_message_3mer',
+                       tags$div(class="header", checked=NA,
+                                tags$h4(strong('You can find the results in this directory: output/signatures/3_mer/'),
+                                        style="color:#0060DB"))
+                       )
+           ),
+           
+           
+           hr()
+           
+  ),
+
+  #-----------------------------------------------------------------------------------------------------------------------------------------
+  
+  tabPanel("5-mer signatures",
+           
+           titlePanel("Extract mutational signatures based on 5-mer motifs"),
+           
+           wellPanel(id="panel_5mer_options",
+             
+                     tags$div(class="header", checked=NA,tags$h4(strong("Select the 3-mer motifs which you want to expand:"),
+                                                                 style="color:#0060DB")),
+                     
+                     fluidRow(column(2,checkboxGroupInput('C_A_for_sig',' N (C > A) N',choices = c_a)),
+                              column(2,checkboxGroupInput('C_G_for_sig',' N (C > G) N',choices = c_g)),
+                              column(2,checkboxGroupInput('C_T_for_sig',' N (C > T) N',choices = c_t)),
+                              column(2,checkboxGroupInput('T_A_for_sig',' N (T > A) N',choices = t_a)),
+                              column(2,checkboxGroupInput('T_C_for_sig',' N (T > C) N',choices = t_c)),
+                              column(2,checkboxGroupInput('T_G_for_sig',' N (T > G) N',choices = t_g))),
+           
+                     textOutput("select_motif_error_5mer"),
+                     tags$head(tags$style("#select_motif_error_5mer{color: red;font-size: 100%;}")),
+                     
+                     hr(),
+                     
+                     tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
+                                                                 style="color:#0060DB")),
+                     radioButtons(inputId="accuracy_5mer",
+                                  label=NA,
+                                  choices=c('Moderate','High','Very High')),#,'Custom')),
+                     
+                     
+
+                     
+                     
+                     conditionalPanel("input.accuracy_5mer == 'Moderate'",
+                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
+                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
+                     
+                     conditionalPanel("input.accuracy_5mer == 'High'",
+                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
+                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
+                     
+                     conditionalPanel("input.accuracy_5mer == 'Very High'",
+                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
+                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
+                     
+                     
+                     
+                     
+                     
+                     # conditionalPanel("input.accuracy_5mer == 'Custom'",
+                     #                  sliderInput("NMF_iters_5mer", "Number of iterations for NMF step",
+                     #                              min = 10, max = 100000,
+                     #                              value = 10, step = 1000)),
+                     
+                     # conditionalPanel("input.accuracy_5mer == 'Custom'",
+                     #                  sliderInput("Boot_iters_5mer", "Number of iterations for Bootstrap step",
+                     #                              min = 10, max = 500,
+                     #                              value = 10, step = 10)),
+                     
+                     fluidRow(column(6,actionButton("start_5mer", "Start calculation",width = '150px',class="btn-success")))
+           ),
+           
+           hr(),
+           
+           shinyjs::hidden(
+             wellPanel(id="panel_5mer_results_sig",
+                       lapply(1:30, function(i) {plotOutput(paste0('p_5mer', i))}),
+                       hr(),
+                       downloadButton("down_sig_plot_5mer", "Download the plots",class="btn-primary")
+             )
+           ),
+           
+           shinyjs::hidden(
+             wellPanel(id='final_message_5mer',
+                       tags$div(class="header", checked=NA,
+                                tags$h4(strong('You can find the results in this directory: output/signatures/5_mer/'),
+                                        style="color:#0060DB"))
+             )
+           ),
+           
+           hr()
+  
+  ),
+  
+  #-----------------------------------------------------------------------------------------------------------------------------------------
+  
+  tabPanel("Clustering",
+           
+           titlePanel("Clustering the samples based on mutational motifs or proportion of signatures"),
+           wellPanel(id="panel_clustering_options_1",
+                     
+                     tags$div(class="header", checked=NA,tags$h4(strong("Based on which method do you want to perform the clustering?"),
+                                                                 style="color:#0060DB")),
+                     radioButtons(inputId="clustering_options_1",
+                                  label=NA,
+                                  choices=c('Cluster based on 3-mer mutational motifs',
+                                            'Cluster based on 5-mer mutational motifs',
+                                            'Cluster based on proportions of 3-mer signatures',
+                                            'Cluster based on proportions of 5-mer signatures'),
+                                  selected = character(0)),
+                     
+                     hr(),
+                     
+                     conditionalPanel("input.clustering_options_1 == 'Cluster based on 3-mer mutational motifs'",
+                                      
+                                      tags$div(class="header", checked=NA,
+                                               tags$h4(strong("Select the 3-mer motifs for which you want to perform clustering:"),
+                                                                                    style="color:#0060DB")),
+                                      rHandsontableOutput("select_3mer_for_clst"),
+                                        
+                                      hr(),
+                                        
+                                      tags$div(class="header", checked=NA,
+                                                tags$h4(strong("Cluster based on count values or proportions of mutational motifs?"),
+                                                        style="color:#0060DB")),
+                                        
+                                      radioButtons(inputId="count_or_proportion_3mer",
+                                                   label=NA,
+                                                   choices=c('Cluster based on "count" values of 3-mer mutational motifs',
+                                                            'Cluster based on "proportions" of 3-mer mutational motifs')),
+                                      hr()
+                                    ),
+                     
+                     conditionalPanel("input.clustering_options_1 == 'Cluster based on 5-mer mutational motifs'",
+                                        
+                                      tags$div(class="header", checked=NA,
+                                               tags$h4(strong("Select the 5-mer motifs for which you want to perform clustering:"),
+                                                       style="color:#0060DB")),
+                                        
+                                      rHandsontableOutput("select_5mer_for_clst"),
+                                        
+                                      hr(),
+                                        
+                                      tags$div(class="header", checked=NA,
+                                               tags$h4(strong("Cluster based on count values or proportions of mutational motifs?"),
+                                                       style="color:#0060DB")),
+                                        
+                                      radioButtons(inputId="count_or_proportion_5mer",
+                                                   label=NA,
+                                                   choices=c('Cluster based on "count" values of 5-mer mutational motifs',
+                                                             'Cluster based on "proportions" of 5-mer mutational motifs')),
+                                      hr()
+                                    ),
+                     
+                     conditionalPanel('input.clustering_options_1',
+                                      actionButton("start_clustering", "Start clustering",width = '150px',class="btn-success")
+                                    ),
+                     
+                     textOutput("select_motif_error_3mer_clst"),
+                     tags$head(tags$style("#select_motif_error_3mer_clst{color: red;font-size: 100%;}")),
+                     
+                     textOutput("select_motif_error_5mer_clst"),
+                     tags$head(tags$style("#select_motif_error_5mer_clst{color: red;font-size: 100%;}")),
+                     
+                     textOutput("error_sig_proportion_3mer_clst"),
+                     tags$head(tags$style("#error_sig_proportion_3mer_clst{color: red;font-size: 100%;}")),
+                     
+                     textOutput("error_sig_proportion_5mer_clst"),
+                     tags$head(tags$style("#error_sig_proportion_5mer_clst{color: red;font-size: 100%;}"))
+ 
+          ),
+          
+          shinyjs::hidden(
+            wellPanel(id='final_message_clustering',
+                      tags$div(class="header", checked=NA,
+                               tags$h4(strong('You can find the results in this directory: output/clustering/'),
+                                       style="color:#0060DB"))
+            )
+          )
+           
+  ),
+  
+  #-----------------------------------------------------------------------------------------------------------------------------------------
+  
+  tabPanel("Simulation",
+           
+           titlePanel("Simulating the input mutational catalogs and extracting simulated signature"),
+           wellPanel(id="panel_simulation_options",
+                     
+                     tags$div(class="header", checked=NA,tags$h4(strong("Select the simulation method:"),
+                                                                 style="color:#0060DB")),
+
+                     radioButtons(inputId="simulation_method",
+                                  label=NA,
+                                  choices=list('Replace the recorded mutations with random 
+                                               mutations without changing the positions of 
+                                               the mutated bases across the genome.' = 1,
+
+                                              
+                                              'Randomize the positions of the mutated bases across 
+                                              the genome while the types of point mutations and their 
+                                              frequencies in each chromosome are maintained without change.'= 2)
+                                            
+                                            ,selected = 1),
+                     
+                     hr(),
+                     
+                     actionButton("start_simulation", "Start simulation",width = '150px',class="btn-success")
+    
+           ),
+           
+           
+           shinyjs::hidden(
+             wellPanel(id="panel_3mer_options_for_simulation",
+                       tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
+                                                                   style="color:#0060DB")),
+                       radioButtons(inputId="accuracy_3mer_for_simulation",
+                                    label=NA,
+                                    choices=c('Moderate','High','Very High')),#,'Custom')),
+                       
+                       
+                       
+                       
+                       
+                       
+                       conditionalPanel("input.accuracy_3mer_for_simulation == 'Moderate'",
+                                        tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
+                                        tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
+                       
+                       conditionalPanel("input.accuracy_3mer_for_simulation == 'High'",
+                                        tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
+                                        tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
+                       
+                       conditionalPanel("input.accuracy_3mer_for_simulation == 'Very High'",
+                                        tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
+                                        tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
+                       
+                       
+                       
+                       
+                       # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
+                       #                  sliderInput("NMF_iters_3mer_for_simulation", "Number of iterations for NMF step",
+                       #                              min = 10, max = 1000000,
+                       #                              value = 10, step = 1000)),
+                       
+                       # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
+                       #                  sliderInput("Boot_iters_3mer_for_simulation", "Number of iterations for Bootstrap step",
+                       #                              min = 10, max = 500,
+                       #                              value = 10, step = 10)),
+                       
+                       fluidRow(column(6,actionButton("start_3mer_for_simulation", "Start calculation",width = '150px',class="btn-success")))
+             )
+             
+           ),
+             
+             
+             shinyjs::hidden(
+               wellPanel(id="panel_3mer_results_sig_for_simulation",
+                         lapply(1:30, function(i) {plotOutput(paste0('p_3mer_for_simulation', i))}),
+                         hr(),
+                         downloadButton("down_sig_plot_3mer_for_simulation", "Download the plots",class="btn-primary")
+               )
+             ),
+           
+           shinyjs::hidden(
+             wellPanel(id='final_message_simulation',
+                       tags$div(class="header", checked=NA,
+                                tags$h4(strong('You can find the results in this directory: output/simulation/method1(or 2)'),
+                                        style="color:#0060DB"))
+             )
+           )
+          
+  )
+  )
+  )
+  )
+)
+
+
+
+
+
+
+############################################################################################################################################
+###########################################################                      ###########################################################
+###########################################################   Server functions   ###########################################################
+###########################################################                      ###########################################################
+############################################################################################################################################
+
+server <- function(input, output, session) {
+ 
+  observeEvent(input$see_input_file_name,{
+    shinyjs::hide("error_for_input_file_name")
+    if(isolate(input$input_data_file_name) == '')
+    {
+      shinyjs::show("error_for_input_file_name")
+      output$error_for_input_file_name <- renderText({paste0('Type the input file name above.')})
+    } else {
+      shinyjs::hide("error_for_input_file_name")
+      input_file_name <- isolate(input$input_data_file_name)
+      if(!file.exists(paste0('data/',input_file_name)))
+      {
+        shinyjs::show("error_for_input_file_name")
+        output$error_for_input_file_name <- renderText({paste0('Error: The file "',input_file_name,'" does not exist in the "Data folder".')})
+      } else {
+        shinyjs::hide("error_for_input_file_name")
+        shinyjs::disable("panelA")
+        withProgress(message = 'Importing data', value = 0.5,{
+          input_table <<- read.table(paste0('data/',input_file_name),sep = '\t',header = T)  # A global variable
+          if(length(dim(input_table)) >= 2  & dim(input_table)[2] == 1)
+          {
+            input_table <<- read.table(paste0('data/',input_file_name),sep = ',',header = T)
+          }
+          setProgress(1, detail = paste0("finished"))
+        })
+        if(length(dim(input_table)) < 2)
+        {
+          shinyjs::show("error_for_input_file_name")
+          output$error_for_input_file_name <- renderText({paste0('Error: File format is not valid.')})
+          shinyjs::enable("panelA")
+        } else {
+          shinyjs::hide("error_for_input_file_name")
+
+          data_format <<- isolate(input$file_format)   # A global variable
+          
+          if(data_format == 'ICGC'){
+            # ICGC format: ----------------------------------------------
+            required_col_names <- ICGC_required_columns
+            if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names)){
+              shinyjs::show("error_for_input_file_name")
+              output$error_for_input_file_name <- renderText({paste0('Error: Some required columns are missing in the input data.')})
+              shinyjs::enable("panelA")
+            } else {
+              shinyjs::hide("error_for_input_file_name")
+              shinyjs::show("success_for_input_file_name")
+              output$success_for_input_file_name <- renderText({paste0('The input data imported successfully.')})
+              shinyjs::disable("panelA")
+              shinyjs::show("panelB")
+            }
+            
+          } else if(data_format == 'TCGA') {
+            shinyjs::alert("TCGA is not currently supported. We will solve it very soon! :)")
+            shinyjs::enable("panelA")
+          } else if (data_format == 'Other') {
+            required_col_names <- Standard_columns
+            if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names))
+            {
+              shinyjs::show("error_for_input_file_name")
+              output$error_for_input_file_name <- renderText({paste0('Error: Some required columns are missing in the input data.')})
+              shinyjs::enable("panelA")
+            } else {
+              shinyjs::hide("error_for_input_file_name")
+              shinyjs::show("success_for_input_file_name")
+              output$success_for_input_file_name <- renderText({paste0('The input data imported successfully.')})
+              shinyjs::disable("panelA")
+              shinyjs::show("panelB")
+            }
+          }
+        }
+      }
+    } 
+  })
+  
+            
+            
+  observeEvent(input$continue_with_preprocessing,{
+    shinyjs::disable("panelB")
+          
+    # Clearing the contents of "result" and "output" folders ------------------
+    setwd('result')
+        unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+    setwd('..')
+    setwd('output')
+        setwd('signatures')
+            setwd('5_mer')
+                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+            setwd('..')
+            setwd('3_mer')
+                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+            setwd('..')
+        setwd('..')
+        
+        setwd('clustering')
+            unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+        setwd('..')
+        
+        setwd('simulation')
+            setwd('method1')
+                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+            setwd('..')
+            setwd('method2')
+                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+            setwd('..')
+        setwd('..')
+    setwd('..')
+    # -------------------------------------------------------------------------
+    
+    
+    
+    how_many <- isolate(input$how_many_cancers)
+    if(how_many == 1) {   # "Single Cancer Type" = 1
+      Max_N <<- 10
+    } else if(how_many ==  2) {   # "Multiple Cancer Types" = 2
+      Max_N <<- 30
+    }
+    
+    number_of_cpu_cores <<- isolate(input$CPU_cores)
+    
+    
+    
+    
+    
+    withProgress(message = 'Preprocessing input data', value = 0,{
+      
+      setProgress(0.1, detail = 'Preparing the input table...')
+      if(data_format == 'ICGC')
+      {
+        required_col_names <- ICGC_required_columns
+        input_table <<- input_table[,required_col_names]
+        
+        # remove invalid rows ---------------------------------
+        invalid_rows <- c()
+        invalid_rows <- c(invalid_rows,which(input_table[,'chromosome_end'] - input_table[,'chromosome_start'] != 0))
+        if(length(invalid_rows) !=0 ){input_table <<- input_table[-invalid_rows,]}    # remove
+        
+        # remove invalid columns ------------------------------
+        invalid_colnames <- c('chromosome_end')
+        invalid_columns <- as.numeric(sapply(invalid_colnames,function(n){which(colnames(input_table) == n)}))
+        
+        input_table <<- input_table[,-invalid_columns] # remove
+        
+        # set the column names --------------------------------
+        colnames(input_table) <- c('sample_id','chromosome','position','reference','mutated_to')
+        
+        input_table <<- unique(input_table)
+
+      } else if(data_format == 'Other') {
+        required_col_names <- Standard_columns
+        input_table <<- input_table[,required_col_names]
+        invalid_rows <- c()
+        invalid_rows <- c(invalid_rows,    which(input_table[,'reference'] == '-' | input_table[,'mutated_to'] == '-')    )
+        if(length(invalid_rows) !=0 ){input_table <<- input_table[-invalid_rows,]}    # remove
+        input_table <<- unique(input_table)
+      }
+      
+      
+      
+      write.table(input_table,'result/input_table.csv',sep = ',',col.names = T,row.names = F)
+      
+      # Now the input_table is ready for counting mutations:
+      input_table_file_name <- 'input_table'
+      save_M5mer <- T
+      M5mer_file_name <- 'M5mer'
+      save_M3mer <- T
+      M3mer_file_name <- 'M3mer'
+      source('src/CountMutations.R',local = TRUE) # After this step, counts of 3mer and 5mer are placed in "result" folder...
+    })
+    
+    
+    shinyjs::hide("preprocessing_ui")    
+    shinyjs::show("processing_ui")
+            
+  }) 
+            
+            
+            
+            
+            
+          
+  
+  
+  observeEvent(input$skip_preprocessing,{
+    shinyjs::disable("panelA")
+    shinyjs::show("panelC")
+  })
+  
+  
+  
+  observeEvent(input$continue,{
+    shinyjs::disable("panelC")
+   
+    setwd('output')
+    if(input$keep_or_not_signatures != 4){      # This means that at least one of the folders inside output folder will be deleted
+      setwd('signatures')
+      if(input$keep_or_not_signatures != 3){  # This means that 5_mer folder must be deleted 
+        setwd('5_mer')
+            unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+        setwd('..')}
+      if(input$keep_or_not_signatures != 2){  # This means that 3_mer folder must be deleted 
+        setwd('3_mer')
+            unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+        setwd('..')}
+      setwd('..')}
+    
+    if(input$keep_or_not_clustering != 2){
+      setwd('clustering')
+          unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+      setwd('..')}
+    
+    if(input$keep_or_not_simulation != 2){
+      setwd('simulation')
+          setwd('method1')
+              unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+          setwd('..')
+          setwd('method2')
+              unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+          setwd('..')
+      setwd('..')}
+    setwd('..')
+    
+    how_many <- isolate(input$how_many_cancers)
+    if(how_many == 1) {   # "Single Cancer Type" = 1
+      Max_N <<- 10
+    } else if(how_many ==  2) {   # "Multiple Cancer Types" = 2
+      Max_N <<- 30
+    }
+   
+    number_of_cpu_cores <<- isolate(input$CPU_cores)
+    
+    shinyjs::hide("preprocessing_ui")    
+    shinyjs::show("processing_ui")
+  })
+
+  
+  
+  
+  
+  # ------------------------------------------------------------------------------------------------------------------
+  # 3-mer tab --------------------------------------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------------------------------------------
+  observeEvent(input$start_3mer,{
+    
+    shinyjs::disable('panel_3mer_options')
+    
+    k_mer <- 3
+    accuracy <- input$accuracy_3mer
+    # NMF_iters <- input$NMF_iters_3mer
+    # Boot_iters <- input$Boot_iters_3mer
+    file_name <- 'M3mer'
+    destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
+    
+    withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
+    
+    N_opt_3mer <- as.numeric(unlist(read.table('output/signatures/3_mer/N_opt.txt')))
+    
+    withProgress(message = 'Plotting the deciphered signatures...', value = 0.5,{
+      source('src/Plot3merSignatures.R',local = TRUE)
+      plt <- plot_signatures_3mer(N_opt_3mer)
+      # Saving the PDFs...
+      pdf(paste0('output/signatures/3_mer/Deciphered signatures (N=',as.character(N_opt_3mer),').pdf'),15,4)
+      for(j in 1:N_opt_3mer) {plot(plt[[j]])}
+      dev.off()
+      # Plotting in the UI
+      lapply(1:N_opt_3mer,function(i){output[[paste0('p_3mer', i)]] <- renderPlot({plot(plt[[i]])})})
+      for(j in 1:30) {shinyjs::hide(paste0('p_3mer', j))}
+      for(j in 1:N_opt_3mer) {shinyjs::show(paste0('p_3mer',j))}
+      #shinyjs::show('panel_3mer_results_sig')
+      shinyjs::show('final_message_3mer')
+      setProgress(1, detail = 'Finished!')
+    })
+    
+    output$down_sig_plot_3mer <- downloadHandler(
+      filename =  function() {paste0('Deciphered signatures in 3-mer format for N=',as.character(N_opt_3mer),' (',Sys.time(),').pdf')},
+      content = function(file) {file.copy(paste0('output/signatures/3_mer/Deciphered signatures (N=',
+                                                 as.character(N_opt_3mer),').pdf'), file)})
+    
+  })
+  
+ 
+  
+  
+  
+  # ------------------------------------------------------------------------------------------------------------------
+  # 5-mer tab --------------------------------------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------------------------------------------
+  observeEvent(input$start_5mer,{
+    
+    No_of_selected_motifs <- length(input$C_A_for_sig)+
+                             length(input$C_G_for_sig)+
+                             length(input$C_T_for_sig)+
+                             length(input$T_A_for_sig)+
+                             length(input$T_C_for_sig)+
+                             length(input$T_G_for_sig)
+    
+    if(No_of_selected_motifs == 0){
+      
+      shinyjs::show("select_motif_error_5mer")
+      output$select_motif_error_5mer <- renderText({paste("Select at least one 3-mer motif.")})
+    
+      } else if(No_of_selected_motifs > 10) {
+        
+        shinyjs::show("select_motif_error_5mer")
+        output$select_motif_error_5mer <- renderText({paste("Number of selected 3-mer motifs can be at most 10.")})      
+      
+      } else {
+        
+        shinyjs::hide('select_motif_error_5mer')
+        shinyjs::disable('panel_5mer_options')
+        selected_3mer_motifs <- c(as.numeric(input$C_A_for_sig), 
+                                  as.numeric(input$C_G_for_sig),
+                                  as.numeric(input$C_T_for_sig),
+                                  as.numeric(input$T_A_for_sig),
+                                  as.numeric(input$T_C_for_sig),
+                                  as.numeric(input$T_G_for_sig))
+        
+        write.table(selected_3mer_motifs,file = 'result/selected_3_mer_motifs.txt',row.names = F,col.names = F)
+      
+        withProgress(message = 'Preprocess data', value = 0,{source('src/MakeSelectedM5mer.R',local = TRUE)})
+      
+        k_mer <- 5
+        accuracy <- input$accuracy_5mer
+        # NMF_iters <- input$NMF_iters_5mer
+        # Boot_iters <- input$Boot_iters_5mer
+        file_name <- 'selectedM5mer'
+        destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
+        
+        withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
+        
+        N_opt_5mer <- as.numeric(unlist(read.table('output/signatures/5_mer/N_opt.txt')))
+        
+        withProgress(message = 'Plotting the deciphered signatures...', value = 0.5,{
+          source('src/Plot5merSignatures.R',local = TRUE)
+          plt <- plot_signatures_5mer(N_opt_5mer)
+          # Saving the PDFs...
+          pdf(paste0('output/signatures/5_mer/Deciphered signatures (N=',
+                     as.character(N_opt_5mer),').pdf'),width = (7+2*No_of_selected_motifs), height = 5)
+          for(j in 1:N_opt_5mer) {plot(plt[[j]])}
+          dev.off()
+          # Plotting in the UI
+          lapply(1:N_opt_5mer,function(i){output[[paste0('p_5mer', i)]] <- renderPlot({plot(plt[[i]])})})
+          for(j in 1:30) {shinyjs::hide(paste0('p_5mer', j))}
+          for(j in 1:N_opt_5mer) {shinyjs::show(paste0('p_5mer',j))}
+          #shinyjs::show('panel_5mer_results_sig')
+          shinyjs::show('final_message_5mer')
+          setProgress(1, detail = 'Finished!')
+        })
+        
+        output$down_sig_plot_5mer <- downloadHandler(
+          filename =  function() {paste0('Deciphered signatures in 5-mer format for N=',as.character(N_opt_5mer),' (',Sys.time(),').pdf')},
+          content = function(file) {file.copy(paste0('output/signatures/5_mer/Deciphered signatures (N=',
+                                                     as.character(N_opt_5mer),').pdf'), file)})
+      }
+  })
+  
+  
+  
+  
+  
+  # ------------------------------------------------------------------------------------------------------------------
+  # Clustering tab ---------------------------------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------------------------------------------
+  observe({
+    changed_option <- input$clustering_options_1
+    shinyjs::hide("select_motif_error_3mer_clst")
+    shinyjs::hide("select_motif_error_5mer_clst")
+    shinyjs::hide("error_sig_proportion_3mer_clst")
+    shinyjs::hide("error_sig_proportion_5mer_clst")
+  })
+  
+  table_5mer_for_clst <- rhandsontable(initial_table_5mer_motifs_for_clst,useTypes=T,stretchH="all",width=600)%>%
+    hot_col(col = "Selected",  halign = "htCenter")%>%
+    hot_col(col = "Flanking1", halign = "htCenter")%>%
+    hot_col(col = "Flanking2", halign = "htCenter")%>%
+    hot_col(col = "Mutation",  halign = "htCenter")%>%
+    hot_col(col = "Flanking3", halign = "htCenter")%>%
+    hot_col(col = "Flanking4", halign = "htCenter")
+  output$select_5mer_for_clst <- renderRHandsontable({table_5mer_for_clst})
+  
+  table_3mer_for_clst <- rhandsontable(initial_table_3mer_motifs_for_clst,useTypes=T,stretchH="all",width=410)%>%
+    hot_col(col = "Selected",  halign = "htCenter")%>%
+    hot_col(col = "Flanking1", halign = "htCenter")%>%
+    hot_col(col = "Mutation",  halign = "htCenter")%>%
+    hot_col(col = "Flanking2", halign = "htCenter")
+  output$select_3mer_for_clst <- renderRHandsontable({table_3mer_for_clst})
+
+  observe({if(!is.null(input$select_5mer_for_clst)){table_5mer_motifs_for_clst <<- hot_to_r(input$select_5mer_for_clst)}})
+  observe({if(!is.null(input$select_3mer_for_clst)){table_3mer_motifs_for_clst <<- hot_to_r(input$select_3mer_for_clst)}})
+  
+  
+  observeEvent(input$start_clustering,{
+    shinyjs::hide("select_motif_error_3mer_clst")
+    shinyjs::hide("select_motif_error_5mer_clst")
+    shinyjs::hide("error_sig_proportion_3mer_clst")
+    shinyjs::hide("error_sig_proportion_5mer_clst")
+    
+    if(input$clustering_options_1 == 'Cluster based on 3-mer mutational motifs') {
+        selected_indxs <- which(table_3mer_motifs_for_clst$Selected == TRUE)
+        if(length(selected_indxs) == 0) {
+          shinyjs::show("select_motif_error_3mer_clst")
+          output$select_motif_error_3mer_clst <- renderText({paste("Select at least one 3-mer motif.")})
+        } else if(!all(table_3mer_motifs_for_clst[selected_indxs,-1] != 'NA')) {
+          shinyjs::show("select_motif_error_3mer_clst")
+          output$select_motif_error_3mer_clst <- renderText({
+            paste('The rows which are checked as "selected" must be filled completely.')})
+        } else {
+          shinyjs::hide("select_motif_error_3mer_clst")
+          shinyjs::disable('panel_clustering_options_1')
+          nuc <- c(0:3)
+          names(nuc) <- c('A','C','G','T')
+          mut <- c(0:5)
+          names(mut) <- c('C > A','C > G','C > T','T > A','T > C','T > G')
+          selected_3mer_motifs <- table_3mer_motifs_for_clst[selected_indxs,-1]
+          fl1 <- as.numeric(nuc[selected_3mer_motifs$Flanking1])
+          mu <- as.numeric(mut[selected_3mer_motifs$Mutation])
+          fl2 <- as.numeric(nuc[selected_3mer_motifs$Flanking2])
+          selected_3mer_motifs_for_clst <- 16*mu+4*fl1+fl2+1
+          write.table(selected_3mer_motifs_for_clst,file = 'result/selected_3mer_motifs_for_clst.txt',row.names=F,col.names=F)
+          k_mer <- 3
+          motif_or_signature <- 'motif'
+          if(input$count_or_proportion_3mer == 'Cluster based on "count" values of 3-mer mutational motifs') {
+            count_or_proportion <- 'count'
+          } else if(input$count_or_proportion_3mer == 'Cluster based on "proportions" of 3-mer mutational motifs') {
+            count_or_proportion <- 'proportion'
+          }
+          withProgress(message = 'Preparing data for clustering', value = 0.5,{source('src/PrepareForClustering.R',local = TRUE)})
+          withProgress(message = 'Clustering', value = 0,{source('src/Clustering.R',local = TRUE)})
+        }
+
+    } else if(input$clustering_options_1 == 'Cluster based on 5-mer mutational motifs') {
+        selected_indxs <- which(table_5mer_motifs_for_clst$Selected == TRUE)
+        if(length(selected_indxs) == 0) {
+          shinyjs::show("select_motif_error_5mer_clst")
+          output$select_motif_error_5mer_clst <- renderText({paste("Select at least one 5-mer motif.")})
+        } else if(!all(table_5mer_motifs_for_clst[selected_indxs,-1] != 'NA')) {
+            shinyjs::show("select_motif_error_5mer_clst")
+            output$select_motif_error_5mer_clst <- renderText({
+              paste('The rows which are checked as "selected" must be filled completely.')})
+        } else {
+          shinyjs::hide("select_motif_error_5mer_clst")
+          shinyjs::disable('panel_clustering_options_1')
+          nuc <- c(0:3)
+          names(nuc) <- c('A','C','G','T')
+          mut <- c(0:5)
+          names(mut) <- c('C > A','C > G','C > T','T > A','T > C','T > G')
+          selected_5mer_motifs <- table_5mer_motifs_for_clst[selected_indxs,-1]
+          fl1 <- as.numeric(nuc[selected_5mer_motifs$Flanking1])
+          fl2 <- as.numeric(nuc[selected_5mer_motifs$Flanking2])
+          mu <- as.numeric(mut[selected_5mer_motifs$Mutation])
+          fl3 <- as.numeric(nuc[selected_5mer_motifs$Flanking3])
+          fl4 <- as.numeric(nuc[selected_5mer_motifs$Flanking4])
+          selected_5mer_motifs_for_clst <- 16*(16*mu+4*fl2+fl3)+4*fl1+fl4+1
+          write.table(selected_5mer_motifs_for_clst,file = 'result/selected_5mer_motifs_for_clst.txt',row.names=F,col.names=F)
+          k_mer <- 5
+          motif_or_signature <- 'motif'
+          if(input$count_or_proportion_5mer == 'Cluster based on "count" values of 5-mer mutational motifs') {
+            count_or_proportion <- 'count'
+          } else if(input$count_or_proportion_5mer == 'Cluster based on "proportions" of 5-mer mutational motifs') {
+            count_or_proportion <- 'proportion'
+          }
+          withProgress(message = 'Preparing data for clustering', value = 0.5,{source('src/PrepareForClustering.R',local = TRUE)})
+          withProgress(message = 'Clustering', value = 0,{source('src/Clustering.R',local = TRUE)})
+        }
+
+
+        
+    } else if(input$clustering_options_1 == 'Cluster based on proportions of 3-mer signatures' |
+              input$clustering_options_1 == 'Cluster based on proportions of 5-mer signatures') {
+      
+      option <- input$clustering_options_1
+      k_mer <- as.numeric(substr(option,33,33))
+
+      files <- list.files(path=paste0('output/signatures/',as.character(k_mer),'_mer/'),pattern = "\\.*$")
+      if(length(files) == 0)
+      {
+        shinyjs::show(paste0("error_sig_proportion_",as.character(k_mer),"mer_clst"))
+        output[[paste0("error_sig_proportion_",as.character(k_mer),"mer_clst")]] <- renderText({
+          paste0('Error: The output/signatures/',as.character(k_mer),'_mer/ folder is empty.')})
+      } else {
+        
+        shinyjs::hide(paste0("error_sig_proportion_",as.character(k_mer),"mer_clst"))
+        shinyjs::disable('panel_clustering_options_1')
+        
+        motif_or_signature <- 'signature'
+        count_or_proportion <- 'proportion'
+          
+        withProgress(message = 'Preparing data for clustering', value = 0.5,{source('src/PrepareForClustering.R',local = TRUE)})
+        withProgress(message = 'Clustering', value = 0,{source('src/Clustering.R',local = TRUE)})
+      }
+    }
+    
+    shinyjs::show('final_message_clustering')
+  })
+  
+  
+  
+  
+  
+  # ------------------------------------------------------------------------------------------------------------------
+  # Simulation tab ---------------------------------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------------------------------------------
+  observeEvent(input$start_simulation,{
+    shinyjs::disable('panel_simulation_options')
+    if(isolate(input$simulation_method) == 1){
+      method <- 1
+    } else {
+      method <- 2
+    }
+    
+    withProgress(message = paste0('Simulation with method ',as.character(method),':'), value = 0,{
+      source('src/MakeRandom.R',local = TRUE)
+    })
+
+
+    input_table_file_name <- paste0('input_table_random_',as.character(method))
+    save_M5mer <- F
+    save_M3mer <- T
+    M3mer_file_name <- paste0('M3mer_random_',as.character(method))
+    withProgress(message = 'Preprocessing the simulated data', value = 0,{
+      source('src/CountMutations.R',local = TRUE)
+    })
+    
+    shinyjs::show('panel_3mer_options_for_simulation')
+  })
+  
+  
+  observeEvent(input$start_3mer_for_simulation,{
+    
+    shinyjs::disable('panel_3mer_options_for_simulation')
+    
+    if(isolate(input$simulation_method) == 1){
+      method <- 1
+    } else {
+      method <- 2
+    }
+    
+    k_mer <- 3
+    accuracy <- input$accuracy_3mer_for_simulation
+    # NMF_iters <- input$NMF_iters_3mer_for_simulation
+    # Boot_iters <- input$Boot_iters_3mer_for_simulation
+    file_name <- paste0('M3mer_random_',as.character(method))
+    destination_folder <- paste0("output/simulation/method",as.character(method),"/")
+    
+    withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
+    
+    N_opt_3mer_for_simulation <- as.numeric(unlist(read.table(paste0(destination_folder,'N_opt.txt'))))
+    
+    withProgress(message = 'Plotting the deciphered signatures...', value = 0.5,{
+      source('src/Plot3merSignatures.R',local = TRUE)
+      plt <- plot_signatures_3mer(N_opt_3mer_for_simulation)
+      # Saving the PDFs...
+      pdf(paste0(destination_folder,'Deciphered signatures (N=',as.character(N_opt_3mer_for_simulation),').pdf'),15,4)
+      for(j in 1:N_opt_3mer_for_simulation) {plot(plt[[j]])}
+      dev.off()
+      # Plotting in the UI
+      lapply(1:N_opt_3mer_for_simulation,function(i){output[[paste0('p_3mer_for_simulation', i)]] <- renderPlot({plot(plt[[i]])})})
+      for(j in 1:30) {shinyjs::hide(paste0('p_3mer_for_simulation', j))}
+      for(j in 1:N_opt_3mer_for_simulation) {shinyjs::show(paste0('p_3mer_for_simulation',j))}
+      #shinyjs::show('panel_3mer_results_sig_for_simulation')
+      shinyjs::show('final_message_simulation')
+      setProgress(1, detail = 'Finished!')
+    })
+    
+    output$down_sig_plot_3mer_for_simulation <- downloadHandler(
+      filename =  function() {paste0('Deciphered simulated signatures in 3-mer format for N=',as.character(N_opt_3mer_for_simulation),' (',Sys.time(),').pdf')},
+      content = function(file) {file.copy(paste0(destination_folder,'Deciphered signatures (N=',
+                                                 as.character(N_opt_3mer_for_simulation),').pdf'), file)})
+    
+  })
+  
+  
+  
+  
+  
+  
+
+  
+}
+
+shinyApp(ui, server)
+
+
