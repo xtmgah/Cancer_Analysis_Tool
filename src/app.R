@@ -113,6 +113,9 @@ ui <- fluidPage(
                             tags$div(class="header", checked=NA,tags$h4(
                               strong('Put your data file inside "data" folder. Then type the name of input file (with extension) below:'),
                               style="color:#0060DB")),
+                            
+                            
+                            
                             textInput("input_data_file_name", label=NA),
                             hr(),
                             tags$div(class="header", checked=NA,tags$h4(
@@ -825,8 +828,10 @@ server <- function(input, output, session) {
     
     k_mer <- 3
     accuracy <- input$accuracy_3mer
+    
     # NMF_iters <- input$NMF_iters_3mer
     # Boot_iters <- input$Boot_iters_3mer
+    
     file_name <- 'M3mer'
     destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
     

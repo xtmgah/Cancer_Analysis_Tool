@@ -3,8 +3,8 @@ cat('\n')
 cat(paste0('Deciphering ',as.character(k_mer),'-mer mutational signatures...\n'))
 
 #suppressMessages(library('parallel'))
-local_lib_path <- paste0(getwd(),'/../R_libs')
-.libPaths(c(.libPaths(),local_lib_path))
+#local_lib_path <- paste0(getwd(),'/../R_libs')
+#.libPaths(c(.libPaths(),local_lib_path))
 suppressMessages(library(doParallel))
 
 
@@ -91,37 +91,23 @@ cat("Dimension Reduction done\n")
 
 
 # \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
-#It is defined by the user (it defaults to 10)
-#Max_N <-
-#It is defined by the user (it defaults to 1)
-#number_of_cpu_cores <-
+NMF_total_max <- 5000                                   # maximum number of NMF iterations
+NMF_iters <- 1000                                       # number of NMF iterations in each epoch
+NMF_max_epoches <- ceiling(NMF_total_max/NMF_iters)     # fine tune the maximum number of NMF
+NMF_conv <- 1e-2                                        # stop criteria for NMF
 
-NMF_iters <- 10000            # number of NMF iterations in each epoch
-NMF_total_max <- 500000      # maximum number of NMF iterations
-NMF_max_epoches <- ceiling(NMF_total_max/NMF_iters)
+Boot_total_max <- 100                                   # maximum number of bootstrap iterations
+Boot_iters <- max(20,number_of_cpu_cores)               # number of bootstrap iterations in each epoch
+Boot_max_epoches <- ceiling(Boot_total_max/Boot_iters)  # fine tune the maximum number of bootstraps
+Boot_conv <- 1e-2                                       # stop criteria for bootstrap
 
-Boot_iters <- max(30,number_of_cpu_cores)
-Boot_total_max <- 300
-Boot_max_epoches <- ceiling(Boot_total_max/Boot_iters)
-Boot_conv <- 1e-2
-
-
-
-# if(accuracy == 'Moderate') {
-#   NMF_conv <- 1e-2
-#   Boot_conv <- 0.1
-# } else if(accuracy == 'High') {
-#   NMF_conv <- 1e-5
-#   Boot_conv <- 0.05
-# } else if(accuracy == 'Very High') {
-#   NMF_conv <- 1e-6
-#   Boot_conv <- 0.01
-# } else if(accuracy == 'Custom') {
-#    # determined by input$ ...
-# }
+start_N <- 1
+Max_N <- 12
 
 increment_progress_by <- 0.99/(3*Max_N+1)
 # \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
+
+
 
 
 
@@ -134,6 +120,8 @@ cat(paste("Boot_iters =",as.character(Boot_iters),'\n'))
 cat(paste("Boot_total_max =",as.character(Boot_total_max),'\n'))
 cat(paste("Boot_conv =",as.character(Boot_conv),'\n'))
 cat('\n')
+
+
 
 
 
@@ -215,7 +203,7 @@ for(N in c(start_N:Max_N))
 
 
 
-    # Normalaize matrix P and then correct matrix E so that PE remains fixed
+    # Normalaize each column of matrix P and then correct matrix E so that PE remains fixed
     sums <- colSums(P)
     P <- t(t(P) / sums)
     E <- E * sums
@@ -230,27 +218,11 @@ for(N in c(start_N:Max_N))
   #Sys.sleep(0.01)
   
   
-  
-  # iterate <- function(i)
-  # {
-  #   cat(paste0('-------------------------- Bootstrap ',as.character(i),'/',as.character(Boot_iters),'\n'))
-  #   S <- nmf()
-  #   P <- t(matrix(S[1:K,],ncol=N))
-  #   E <- t(matrix(S[(K+1):(K+G),],ncol=N))
-  #   return(cbind(P,E))
-  # }
-  
-  
-  
-  
-  
   cat(paste0('N = ',as.character(N)),'\n')
   SP <- matrix(nrow = 0,ncol = K)
   SE <- matrix(nrow = 0,ncol = G)
   
   history_of_centroids <- list()
-  
-  
   
   for(epoch_boot in 1:Boot_max_epoches)
   {
@@ -261,22 +233,14 @@ for(N in c(start_N:Max_N))
     cat('--------------- Performing NMF for each bootstrapped data\n')
     
 
-
-
-
-
-
-
-
-
     ########################################################
     # Save SP and SE to the current folder and delete them from environment so that it becomes light.
     if(epoch_boot != 1)
     {
       cat('--------------- pushing extra results from previous epoches...')
       st_push <- Sys.time()
-      write.table(SP,'SP.txt',row.names = F,col.names = F)
-      write.table(SE,'SE.txt',row.names = F,col.names = F)
+      write.table(SP,'temp/SP.txt',row.names = F,col.names = F)
+      write.table(SE,'temp/SE.txt',row.names = F,col.names = F)
       rm("SP")
       rm("SE")
       se_push <- Sys.time()
@@ -332,10 +296,10 @@ for(N in c(start_N:Max_N))
       # Retrive the SP and SE stored in the current folder
       cat('--------------- pulling the results from previous epoches...')
       st_pull <- Sys.time()
-      SP <- as.matrix(read.table('SP.txt'),header=F)
-      SE <- as.matrix(read.table('SE.txt'),header=F)
-      file.remove('SP.txt')
-      file.remove('SE.txt')
+      SP <- as.matrix(read.table('temp/SP.txt'),header=F)
+      SE <- as.matrix(read.table('temp/SE.txt'),header=F)
+      file.remove('temp/SP.txt')
+      file.remove('temp/SE.txt')
       se_pull <- Sys.time()
       cat(paste0('Done (after ',format(se_pull-st_pull),')\n'))
     }
@@ -403,41 +367,10 @@ for(N in c(start_N:Max_N))
       clst1 <- rep(0,dim(SP)[1])     #SP[i,] <-> clst1[i]  (clusters indices: 1,2,3,...,N)
       
       num_iter <- 0
-      while(TRUE)
+      while(TRUE) 
       {
         
-        if(number_of_cpu_cores > 1)
-        {
-          # cat("Forking for parallelization...\n") 
-        
-          # while(1)
-          # {
-          #   make_fork_cluster <- function()
-          #   {
-          #     CL <- tryCatch(
-          #       {
-          #         makeForkCluster(number_of_cpu_cores)
-          #       },
-          #       error = function(cond) {
-          #         return(NA)
-          #       } 
-          #     )
-          #     return(CL)
-          #   }
-
-          #   cl <- make_fork_cluster()
-          #   if(is.na(cl) == FALSE)
-          #   {
-          #     break
-          #   }
-          #   cat("Trying again to fork...\n") 
-          #   Sys.sleep(1)
-          # }
-
-          # cat("Parallelizing...\n")
-          # clst1 <- parSapply(cl,c(1:(dim(SP)[1])),min_dist)
-          # stopCluster(cl)
-          # cat("Done\n")
+        if(number_of_cpu_cores > 1) {
           cat('-------------------------- Updating cluster assignments...')
           clst1 <- sapply(c(1:(dim(SP)[1])),min_dist)
           cat('Done\n')
@@ -446,9 +379,6 @@ for(N in c(start_N:Max_N))
           clst1 <- sapply(c(1:(dim(SP)[1])),min_dist)
           cat('Done\n')
         }
-        
-
-
 
         for(i in c(1:N))
         {
@@ -458,6 +388,7 @@ for(N in c(start_N:Max_N))
             centroids[i,] <- colMeans(matrix(SP[members_indices,],length(members_indices))) # calculate centroids
           }
         }
+        
         # cost function: sum-of-squares
         cost <- sum(sapply(c(1:(dim(SP)[1])),function(i) ang_dis(SP[i,],centroids[clst1[i],])))
         if(identical(clst1,clst0)){break}
@@ -472,103 +403,42 @@ for(N in c(start_N:Max_N))
     
     
     history_of_centroids[[epoch_boot]] <- centroids
-
     
-    if(epoch_boot %% 2 == 0) 
-    {
+    if(epoch_boot %% 2 == 0) {
       old_epoch <- epoch_boot / 2
       old_centroids <- history_of_centroids[[old_epoch]]
- 
       candidates <- list()
-      for(j in 1:N)
-      {
+      for(j in 1:N) {
         distances <- sapply(c(1:N),function(i){ang_dis(centroids[j,],old_centroids[i,])})
         candidates[[j]] <- which(distances < Boot_conv)
       }
-
-      # for(i in 1:N)
-      # {
-      #   cat(paste0('candidates[[',as.character(i),']] = '))
-      #   cat(candidates[[i]])
-      #   cat('\n')
-      # }
-      
       assignment <<- rep(0,N)
-      
-      find_assignment <- function(current_index)
-      {
+      find_assignment <- function(current_index) {
         current_candidates <- candidates[[current_index]]
         possibles <- current_candidates[which(assignment[current_candidates] == 0)]
-        
-        #cat(paste0('*** current_index = ',as.character(current_index)),'\n')
-        #cat('*** posibles = ')
-        #cat(as.character(possibles))
-        #cat('\n')
-        
-        if(length(possibles) == 0) 
-        {
-          #cat('*** length(possibles) = 0. Failed!\n')
+        if(length(possibles) == 0) {
           return(FALSE) 
         } 
-        
-        if(current_index == N) 
-        { 
-          #cat('*** It is the last index. Successful!\n')
+        if(current_index == N) { 
           assignment[possibles] <<- current_index
-          #cat('assignment = ')
-          #cat(assignment)
-          #cat('\n')
           return(TRUE) 
         } 
-        
-        for(p in possibles)
-        {
-          #cat(paste0('*** p = ',as.character(p),' selected\n'))
+        for(p in possibles) {
           assignment[p] <<- current_index
-          #cat('*** assignment = ')
-          #cat(assignment)
-          #cat('\n')
-          #cat('### Go to next index\n')
           if( find_assignment(current_index+1) == T) { return(TRUE) }
-          #cat('### Returned from next index\n')
           assignment[p] <<- 0
-          #cat('*** assignment = ')
-          #cat(assignment)
-          #cat('\n')
         }
-        
         return(FALSE)
       }
-      
-      #cat('assignment = ')
-      #cat(assignment)
-      #cat('\n')
-      
-      
-      #cat('>>> Finding assignment...\n')
       can_find <- find_assignment(1)
-      #cat('<<< Finding assignment Done\n')
-      
-      if(can_find == TRUE)
-      {
+      if(can_find == TRUE) {
         cat(paste0('--------------- Angular distance between centroids of epoch ',as.character(old_epoch),
                                ' and ',as.character(epoch_boot),' is less than ',as.character(Boot_conv),'\n'))
-        
-        # for(i in 1:N)
-        # {
-        #   cat(paste0('angular distance between centroid[',as.character(i),'] in epoch ',as.character(old_epoch),
-        #                                ' and centroid[',as.character(assignment[i]),'] in epoch ',as.character(epoch_boot),
-        #                                ' = ',as.character(ang_dis(old_centroids[i,],centroids[assignment[i],])),'\n'))
-        # }
-        
-        
         break()
-        
       } else {
         cat(paste0('--------------- Angular distance between centroids of epoch ',as.character(old_epoch),
                    ' and ',as.character(epoch_boot),' is more than ',as.character(Boot_conv),'\n'))
       }
-      
     }
     
   }
@@ -663,43 +533,43 @@ cat('\nPlotting the evaluation diagram...')
 plot_eval_diagram <- function()
 {
   e <- read.table(paste0(destination_folder,"Evaluation.txt"))
-  n <- 1:dim(e)[1]
+  n <- e[,1]
   repro <- e[,2]
   frobe <- e[,3]
   frobe <- frobe/max(frobe)
-
+  
   ## add extra space to right margin of plot within frame
   par(mar=c(5, 5, 4, 6) + 0.5)
-
+  
   ymin <- 0.1
-
+  
   ## Plot the second plot and put axis scale on right
-  plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(0.75,length(n)+0.25), xlab="", ylab="",
+  plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
        type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
-
+  
   grid(lwd = 2)
-
+  
   ## Allow a second plot on the same graph
   par(new=TRUE)
-
-  plot(n, frobe, pch=20,  xlab="", ylab="", ylim=c(0,1),xlim = c(0.75,length(n)+0.25),
+  
+  plot(n, frobe, pch=20,  xlab="", ylab="", ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25),
        axes=FALSE, type="p", col="blue",frame.plot = FALSE)
   ## a little farther out (line=4) to make room for labels
   mtext("Relative Frobenius Reconstruction Error",side=4,col="blue",line=2.5)
   axis(4,lwd = 2, ylim=range(frobe), col="blue",col.axis="blue",las=1)
-
+  
   ## Allow a second plot on the same graph
   par(new=TRUE)
-
+  
   ## Plot first set of data and draw its axis
-  plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(0.75,length(n)+0.25), xlab="", ylab="",
+  plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
        type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
   lines(n, repro,col='red')
   axis(2, lwd = 2,ylim=range(repro),col="red",col.axis="red",las=1)  ## las=1 makes horizontal labels
   mtext("Signatures Reproducibility",side=2,col ="red",line=3.75)
-
+  
   ## Draw the time axis
-  axis(1,0:(length(n)+1))
+  axis(1,(n[1]-1):(n[length(n)]+1))
   mtext("Number of mutational signatures",side=1,col="black",line=2.5)
 }
 
@@ -715,21 +585,6 @@ N_opt <- order(-Drop_in_repro)[1]
 write.table(N_opt,file=paste0(destination_folder,"N_opt.txt"),row.names=F,col.names=F)
 
 cat('Done\n')
-
-############## PCR... When I merged the data of Breast cancer and Skin cancer.... 
-# P <- t(read.table(paste0('output/signatures/3_mer/","P-n-',as.numeric(N),'.txt')))
-# for(i in 1:N){P[,i] <- P[,i] / sum(P[,i])}
-# PP <- matrix(rep(0,96*N),ncol = N)
-# rem <- simplify2array(read.table('output/signatures/3_mer/","remaining_mut_types.txt'))
-# for(i in 1:N){PP[rem,i] <- P[,i]}
-# PP <- as.data.frame(PP)
-# P <- PP
-# 
-# E <- as.data.frame(t(read.table(paste0('output/signatures/3_mer/","E-n-',as.numeric(N),'.txt'))))
-# sums <- rowSums(E)                                          # nNrmalize so that the entries of exposure matrix indicate the
-# for(i in 1:N){E[,i] <- E[,i] / sums}                        # proportion of each signature for each patient
-# E$cancer_type <- factor(c(rep(1,236),rep(2,dim(M)[2]-236))) 
-# autoplot(prcomp(E[,1:3]),data=E,colour='cancer_type')+theme_bw()
 
 
 

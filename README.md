@@ -1,5 +1,5 @@
 # Cancer Analysis Tool
-This is a pilot version of CANCERSIGN tool...
+A user-friendly and robust tool for identification and classification of mutational signatures and patterns in cancer genomes.
 
 Table of contents
 =================
