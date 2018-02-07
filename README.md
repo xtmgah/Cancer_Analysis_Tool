@@ -1,5 +1,5 @@
 # Cancer Analysis Tool
-This is a pilot version of CANCERSIGN tool!
+This is a pilot version of CANCERSIGN tool...
 
 Table of contents
 =================
