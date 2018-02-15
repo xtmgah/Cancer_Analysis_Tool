@@ -19,7 +19,7 @@ cat('---------------------------------------------------------------------------
 cat(paste0('\nCurrent working directory: ',getwd(),'\n'))
 
 
-write.table(Sys.getpid(),file = 'pid.txt',row.names = FALSE,col.names = FALSE,append = TRUE)
+write.table(Sys.getpid(),file = 'temp/pid.txt',row.names = FALSE,col.names = FALSE,append = TRUE)
 
 ############################################################################################################################################
 ###########################################################                      ###########################################################
