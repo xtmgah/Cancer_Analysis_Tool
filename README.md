@@ -1,5 +1,5 @@
 # Cancer Analysis Tool
-A user-friendly and robust tool for identification and classification of mutational signatures and patterns in cancer genomes.
+M. Bayati, H.R. Rabiee, et al., H. Alinejad-Rokny, “CANCERSIGN: a user-friendly and robust tool for identification and classification of mutational signatures and patterns in cancer genomes”, preparing for submission.
 
 Table of contents
 =================
