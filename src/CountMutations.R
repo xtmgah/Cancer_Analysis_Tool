@@ -42,7 +42,7 @@ cat(paste0(' (',format(f-s),')\n'))
 #------------------------------------------------------------------------------------
 cat('extracting contexts')
 s <- Sys.time()
-L2_L1_ref_R1_R2 <- as.character(getSeq(Hsapiens,gr))
+L2_L1_ref_R1_R2 <- as.character(BSgenome::getSeq()(Hsapiens,gr))
 f <- Sys.time()
 cat(paste0(' (',format(f-s),')\n'))        
 #------------------------------------------------------------------------------------
