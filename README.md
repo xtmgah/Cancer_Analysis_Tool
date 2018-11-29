@@ -91,7 +91,7 @@ After specifying the input file, you can click on the green button to start prep
 
 3-mer signatures tab
 -----------------
-This tab is dedicated to extracting 3-mer mutational signatures from mutational catalogue of input data. First, you are asked 
+This tab is dedicated to extracting 3-mer mutational signatures from mutational catalogue of input data. You first choose the accuracy level  
 
 Do not close the terminal window.
 To restrart the tool, just double click on the run file again.
@@ -105,5 +105,5 @@ To restrart the tool, just double click on the run file again.
 *
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE0MzIwNDg2NzddfQ==
+eyJoaXN0b3J5IjpbLTEwODEyMzcyMTBdfQ==
 -->
