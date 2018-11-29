@@ -103,5 +103,7 @@ To restrart the tool, just double click on the run file again.
 *
 *
 *
-This manual will be completed soon...
-=====================================
+
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTE0MzIwNDg2NzddfQ==
+-->
