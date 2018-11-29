@@ -74,7 +74,7 @@ After specifying the input data file, you can click on the green button to start
 This tab is dedicated to extracting 3-mer mutational signatures from mutational catalogue of input data. You first choose the accuracy level and then click on the start button. Once the process is complete, the results would be on the output folder.
 Using the scripts in this tool, you can visualize the resultant 3-mer mutational signatures which results in a group of plots like this:
 
-![2 with arrows](https://user-images.githubusercontent.com/36207812/49217075-e3cf3980-f3e1-11e8-9752-ec4dc3621a55.png)
+![2 with arrows](https://user-images.githubusercontent.com/36207812/49217716-918f1800-f3e3-11e8-9095-a69e6c83a1b1.png)
 
 Terminate or Restart
 -----------------
@@ -82,6 +82,7 @@ To terminate the tool, close the corresponding terminal window.
 To restart the tool, just double click on the **_Run_** file again.
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTE4MDQ1MjU4MTYsLTE1ODQwNjE2NDMsLT
-EwMjQyMjk0NDYsNTI1NjM4NzUzLDE0ODUzOTExODJdfQ==
+eyJoaXN0b3J5IjpbMTg2OTIyNzIyMCwtMTgwNDUyNTgxNiwtMT
+U4NDA2MTY0MywtMTAyNDIyOTQ0Niw1MjU2Mzg3NTMsMTQ4NTM5
+MTE4Ml19
 -->
