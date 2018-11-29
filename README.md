@@ -92,8 +92,8 @@ After specifying the input file, you can click on the green button to start prep
 3-mer signatures tab
 -----------------
 This tab is dedicated to extracting 3-mer mutational signatures from mutational catalogue of input data. You first choose the accuracy level and then click on the start button. Once the process is complete, the results would be on the output folder.
-Using the scripts in this tool, you can visualize the 3-mer mutational signatures which results in a plot like this:
+Using the scripts in this tool, you can visualize the 3-mer mutational signatures which results in a gplots like this:
 
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTQ4NTM5MTE4Ml19
+eyJoaXN0b3J5IjpbLTM5NDc2OTUxMiwxNDg1MzkxMTgyXX0=
 -->
