@@ -1,3 +1,6 @@
+
+
+
 # CANCERSIGN manual
 M. Bayati, H.R. Rabiee, et al., and H. Alinejad-Rokny, “**CANCERSIGN: a user-friendly and robust tool for identification and classification of mutational signatures and patterns in cancer genomes**”, preparing for submission.
 
@@ -9,7 +12,6 @@ Table of contents
   * [Usage](#usage)
     * [Overview](#overview)
     * [Preprocessing tab](#preprocessing-tab)
-    * [3-mer signatures tab](#3-mer-signatures-tab)
     * [Terminate or Restart](#terminate-or-restart)
 
 
@@ -69,20 +71,10 @@ After specifying the input data file, you can click on the green button to start
 ![2 with arrows](https://user-images.githubusercontent.com/16561858/30988310-ed844d16-a4a6-11e7-9cbe-aafbb1dddb09.png)
 
 
-3-mer signatures tab
------------------
-This tab is dedicated to extracting 3-mer mutational signatures from mutational catalogue of input data. You first choose the accuracy level and then click on the start button. Once the process is complete, the results would be on the output folder.
-Using the scripts in this tool, you can visualize the resultant 3-mer mutational signatures which results in a group of plots like this:
-
-![2 with arrows](https://user-images.githubusercontent.com/36207812/49217716-918f1800-f3e3-11e8-9095-a69e6c83a1b1.png)
-
 Terminate or Restart
 -----------------
 To terminate the tool, close the corresponding terminal window.  
 To restart the tool, just double click on the **_Run_** file again.
-
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTg2OTIyNzIyMCwtMTgwNDUyNTgxNiwtMT
-U4NDA2MTY0MywtMTAyNDIyOTQ0Niw1MjU2Mzg3NTMsMTQ4NTM5
-MTE4Ml19
+eyJoaXN0b3J5IjpbOTk1MzU2Mzg4LDY3OTYzNDk4Nl19
 -->

@@ -13,7 +13,11 @@ cat(paste0(' (',format(f-s),')\n'))
 cat('importing input_table.csv')
 s <- Sys.time()
 catalog <- fread(paste0('result/',input_table_file_name,'.csv'),sep = ',',header = T)
-catalog$chromosome <- paste0('chr',catalog$chromosome)
+
+catalog$chromosome <- paste0('chr', toupper(gsub('chr', '', as.character(catalog$chromosome))))
+catalog$chromosome <- gsub('chrMT', 'chrM', catalog$chromosome)
+catalog <- catalog[which(catalog$chromosome %in% paste0('chr', c(1:22,'X','Y','M')))]
+
 catalog$`position+2` <- catalog$position + 2
 catalog$position <- catalog$position - 2
 colnames(catalog) <- c('sample_id','chr','pos-2','ref','alt','pos+2')

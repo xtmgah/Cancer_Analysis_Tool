@@ -2,6 +2,7 @@ suppressMessages(library(shiny))
 suppressMessages(library(shinyjs))
 suppressMessages(library(rhandsontable))
 suppressMessages(library(parallel))
+suppressMessages(library(data.table))
 
 
 rm(list=ls(all=TRUE))
@@ -12,7 +13,7 @@ setwd('..')
 
 cat('\n--------------------------------------------------------------------------------------------\n')
 cat('--------------------------------------------------------------------------------------------\n')
-cat('----------------------------------- Cancer Analysis Tool -----------------------------------\n')
+cat('---------------------------------------- CANCERSIGN ----------------------------------------\n')
 cat('--------------------------------------------------------------------------------------------\n')
 cat('--------------------------------------------------------------------------------------------\n')
 
@@ -27,12 +28,10 @@ write.table(Sys.getpid(),file = 'temp/pid.txt',row.names = FALSE,col.names = FAL
 ###########################################################                      ###########################################################
 ############################################################################################################################################
 
-ICGC_required_columns <- c('icgc_sample_id','chromosome','chromosome_start',
-                           'chromosome_end','reference_genome_allele','mutated_to_allele')
+# ICGC_required_columns <- c('icgc_sample_id','chromosome','chromosome_start',
+#                            'chromosome_end','reference_genome_allele','mutated_to_allele')
 
 Standard_columns <- c('sample_id','chromosome','position','reference','mutated_to')
-
-
 
 
 # a <- read.table('data/Breast_whole.csv',sep = ',',header = F)
@@ -106,7 +105,7 @@ ui <- fluidPage(
   useShinyjs(),
   
   div(id = "preprocessing_ui",
-      navbarPage(inverse=TRUE,"Cancer Research",
+      navbarPage(inverse=TRUE,"CANCERSIGN",
                  tabPanel("Preprocessing input file",
 
                           wellPanel(id="panelA",
@@ -118,35 +117,43 @@ ui <- fluidPage(
                             
                             textInput("input_data_file_name", label=NA),
                             hr(),
-                            tags$div(class="header", checked=NA,tags$h4(
-                              strong("Select the input format:"),
-                              style="color:#0060DB")),
-                            radioButtons(inputId="file_format",
-                                         label=NA,
-                                         choices=c('ICGC','TCGA','Other'),selected = 'ICGC'),
-                            conditionalPanel("input.file_format=='Other'",
-                                             tags$div(class="header", checked=NA,tags$h6(
-                                               strong("* See the software manual to know about valid input format."),
-                                               style="color:#0060DB"))
-                                             ),
-                            hr(),
-                            
-                            tags$div(class="header", checked=NA,tags$h4(
-                              strong("How many cancer types are included in this dataset?"),style="color:#0060DB")),
                             
                             
-                            radioButtons(inputId="how_many_cancers",
-                                         label=NA,
-                                         choices = list("Single Cancer Type" = 1,
-                                                        "Multiple Cancer Types" = 2),
-                                         selected = 1),
+                            # tags$div(class="header", checked=NA,tags$h4(
+                            #   strong("Select the input format:"),
+                            #   style="color:#0060DB")),
+                            # radioButtons(inputId="file_format",
+                            #              label=NA,
+                            #              # choices=c('ICGC','TCGA','Other'),selected = 'ICGC'),
+                            #              choices=c('ICGC','Other'),selected = 'ICGC'),
+                            # conditionalPanel("input.file_format=='Other'",
+                            #                  tags$div(class="header", checked=NA,tags$h6(
+                            #                    strong("* See the software manual to know about valid input format."),
+                            #                    style="color:#0060DB"))
+                            #                  ),
+                            # hr(),
                             
-                            hr(),
+                            
+                            
+                            # tags$div(class="header", checked=NA,tags$h4(
+                            #   strong("How many cancer types are included in this dataset?"),style="color:#0060DB")),
+                            # 
+                            # 
+                            # radioButtons(inputId="how_many_cancers",
+                            #              label=NA,
+                            #              choices = list("Single Cancer Type" = 1,
+                            #                             "Multiple Cancer Types" = 2),
+                            #              selected = 1),
+                            # 
+                            # hr(),
+                            
+                            
                             
                             tags$div(class="header", checked=NA,tags$h4(
                               strong("How many CPU cores do you want to use?"),style="color:#0060DB")),
                             
-                             sliderInput("CPU_cores", "Number of CPU cores for parallelization",
+                            # tags$style(type = "text/css", ".irs-grid-pol.small {height: 0px;}"),
+                            sliderInput("CPU_cores", "Number of CPU cores for parallelization",
                                          min =1 , max = detectCores(),
                                          value = ceiling(detectCores()/2), step = 1),
                             
@@ -171,9 +178,8 @@ ui <- fluidPage(
                                       
                                       tags$div(class="header", checked=NA,
                                                tags$h4(strong(paste0('The tool is going to delete all contents of "output" and "result" folders.', 
-                                                                     ' You can make a backup of them before continuing.',
-                                                                     ' When you are ready, press "Continue".')),
-                                                       style="color:#E40038")),
+                                                                     ' You can make a backup of them before continuing.')),
+                                                       style="color:#ff8421")),
                                       
                                       hr(),
                                       
@@ -187,7 +193,7 @@ ui <- fluidPage(
                             wellPanel(id="panelC",
                         
                                       tags$div(class="header", checked=NA,
-                                               tags$h4(strong('Select one of the options for "signatures" folder:'),
+                                               tags$h4(strong('Select one of the options for "output/signatures" folder:'),
                                                        style="color:#0060DB")),
                                       
                                       radioButtons(inputId="keep_or_not_signatures",
@@ -201,7 +207,7 @@ ui <- fluidPage(
                                       hr(),
                         
                                       tags$div(class="header", checked=NA,
-                                               tags$h4(strong('Select one of the options for "clustering" folder:'),
+                                               tags$h4(strong('Select one of the options for "output/clustering" folder:'),
                                                        style="color:#0060DB")),
                         
                                       radioButtons(inputId="keep_or_not_clustering",
@@ -210,17 +216,17 @@ ui <- fluidPage(
                                                                   "Keep the previously obtained results for clustering" = 2), 
                                                    selected = 1),
                                       
-                                      hr(),
-                        
-                                      tags$div(class="header", checked=NA,
-                                               tags$h4(strong('Select one of the options for "simulation" folder:'),
-                                                       style="color:#0060DB")),
-                                      
-                                      radioButtons(inputId="keep_or_not_simulation",
-                                                   label=NA,
-                                                   choices = list("Clear the previously obtained results for simulation " = 1, 
-                                                                  "Keep the previously obtained results for simulation" = 2), 
-                                                   selected = 1), 
+                                      # hr(),
+                                      # 
+                                      # tags$div(class="header", checked=NA,
+                                      #          tags$h4(strong('Select one of the options for "simulation" folder:'),
+                                      #                  style="color:#0060DB")),
+                                      # 
+                                      # radioButtons(inputId="keep_or_not_simulation",
+                                      #              label=NA,
+                                      #              choices = list("Clear the previously obtained results for simulation " = 1, 
+                                      #                             "Keep the previously obtained results for simulation" = 2), 
+                                      #              selected = 1), 
                                       
                                       hr(),hr(),
                                       
@@ -239,7 +245,7 @@ ui <- fluidPage(
   #-----------------------------------------------------------------------------------------------------------------------------------------
   
   hidden(div(id = "processing_ui",
-  navbarPage(inverse=TRUE,"Cancer Research",
+  navbarPage(inverse=TRUE,"CANCERSIGN",
   tabPanel("3-mer signatures",
            
            titlePanel("Extract mutational signatures based on 3-mer motifs"),
@@ -275,6 +281,15 @@ ui <- fluidPage(
                      #                  sliderInput("Boot_iters_3mer", "Number of iterations for Bootstrap step",
                      #                  min = 10, max = 500,
                      #                  value = 10, step = 10),hr()),
+                     
+                     
+                     tags$div(class="header", checked=NA,tags$h4(strong("Select N-Max (the tool will search for optimum number of signatures from 1 to N-Max):"),
+                                                                 style="color:#0060DB")),
+                     sliderInput("NMF_Max_N_3mer", "",
+                                 width = '50%',
+                                 min = 2, max = 50,
+                                 value = 10, step = 1),
+                     
                      
                      fluidRow(column(6,actionButton("start_3mer", "Start calculation",width = '150px',class="btn-success")))
                      ),
@@ -350,7 +365,6 @@ ui <- fluidPage(
                      
                      
                      
-                     
                      # conditionalPanel("input.accuracy_5mer == 'Custom'",
                      #                  sliderInput("NMF_iters_5mer", "Number of iterations for NMF step",
                      #                              min = 10, max = 100000,
@@ -360,6 +374,15 @@ ui <- fluidPage(
                      #                  sliderInput("Boot_iters_5mer", "Number of iterations for Bootstrap step",
                      #                              min = 10, max = 500,
                      #                              value = 10, step = 10)),
+                     
+                     
+                     tags$div(class="header", checked=NA,tags$h4(strong("Select N-Max (the tool will search for optimum number of signatures from 1 to N-Max):"),
+                                                                 style="color:#0060DB")),
+                     sliderInput("NMF_Max_N_5mer", "",
+                                 width = '50%',
+                                 min = 2, max = 50,
+                                 value = 10, step = 1),
+                     
                      
                      fluidRow(column(6,actionButton("start_5mer", "Start calculation",width = '150px',class="btn-success")))
            ),
@@ -472,99 +495,104 @@ ui <- fluidPage(
             )
           )
            
-  ),
+  )
   
   #-----------------------------------------------------------------------------------------------------------------------------------------
   
-  tabPanel("Simulation",
-           
-           titlePanel("Simulating the input mutational catalogs and extracting simulated signature"),
-           wellPanel(id="panel_simulation_options",
-                     
-                     tags$div(class="header", checked=NA,tags$h4(strong("Select the simulation method:"),
-                                                                 style="color:#0060DB")),
-
-                     radioButtons(inputId="simulation_method",
-                                  label=NA,
-                                  choices=list('Replace the recorded mutations with random 
-                                               mutations without changing the positions of 
-                                               the mutated bases across the genome.' = 1,
-
-                                              
-                                              'Randomize the positions of the mutated bases across 
-                                              the genome while the types of point mutations and their 
-                                              frequencies in each chromosome are maintained without change.'= 2)
-                                            
-                                            ,selected = 1),
-                     
-                     hr(),
-                     
-                     actionButton("start_simulation", "Start simulation",width = '150px',class="btn-success")
-    
-           ),
-           
-           
-           shinyjs::hidden(
-             wellPanel(id="panel_3mer_options_for_simulation",
-                       tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
-                                                                   style="color:#0060DB")),
-                       radioButtons(inputId="accuracy_3mer_for_simulation",
-                                    label=NA,
-                                    choices=c('Moderate','High','Very High')),#,'Custom')),
-                       
-                       
-                       
-                       
-                       
-                       
-                       conditionalPanel("input.accuracy_3mer_for_simulation == 'Moderate'",
-                                        tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
-                                        tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
-                       
-                       conditionalPanel("input.accuracy_3mer_for_simulation == 'High'",
-                                        tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
-                                        tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
-                       
-                       conditionalPanel("input.accuracy_3mer_for_simulation == 'Very High'",
-                                        tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
-                                        tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
-                       
-                       
-                       
-                       
-                       # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
-                       #                  sliderInput("NMF_iters_3mer_for_simulation", "Number of iterations for NMF step",
-                       #                              min = 10, max = 1000000,
-                       #                              value = 10, step = 1000)),
-                       
-                       # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
-                       #                  sliderInput("Boot_iters_3mer_for_simulation", "Number of iterations for Bootstrap step",
-                       #                              min = 10, max = 500,
-                       #                              value = 10, step = 10)),
-                       
-                       fluidRow(column(6,actionButton("start_3mer_for_simulation", "Start calculation",width = '150px',class="btn-success")))
-             )
-             
-           ),
-             
-             
-             shinyjs::hidden(
-               wellPanel(id="panel_3mer_results_sig_for_simulation",
-                         lapply(1:30, function(i) {plotOutput(paste0('p_3mer_for_simulation', i))}),
-                         hr(),
-                         downloadButton("down_sig_plot_3mer_for_simulation", "Download the plots",class="btn-primary")
-               )
-             ),
-           
-           shinyjs::hidden(
-             wellPanel(id='final_message_simulation',
-                       tags$div(class="header", checked=NA,
-                                tags$h4(strong('You can find the results in this directory: output/simulation/method1(or 2)'),
-                                        style="color:#0060DB"))
-             )
-           )
-          
-  )
+  
+  # ,
+  # tabPanel("Simulation",
+  # 
+  #          titlePanel("Simulating the input mutational catalogs and extracting simulated signature"),
+  #          wellPanel(id="panel_simulation_options",
+  # 
+  #                    tags$div(class="header", checked=NA,tags$h4(strong("Select the simulation method:"),
+  #                                                                style="color:#0060DB")),
+  # 
+  #                    radioButtons(inputId="simulation_method",
+  #                                 label=NA,
+  #                                 choices=list('Replace the recorded mutations with random
+  #                                              mutations without changing the positions of
+  #                                              the mutated bases across the genome.' = 1,
+  # 
+  # 
+  #                                             'Randomize the positions of the mutated bases across
+  #                                             the genome while the types of point mutations and their
+  #                                             frequencies in each chromosome are maintained without change.'= 2)
+  # 
+  #                                           ,selected = 1),
+  # 
+  #                    hr(),
+  # 
+  #                    actionButton("start_simulation", "Start simulation",width = '150px',class="btn-success")
+  # 
+  #          ),
+  # 
+  # 
+  #          shinyjs::hidden(
+  #            wellPanel(id="panel_3mer_options_for_simulation",
+  #                      tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
+  #                                                                  style="color:#0060DB")),
+  #                      radioButtons(inputId="accuracy_3mer_for_simulation",
+  #                                   label=NA,
+  #                                   choices=c('Moderate','High','Very High')),#,'Custom')),
+  # 
+  # 
+  # 
+  # 
+  # 
+  # 
+  #                      conditionalPanel("input.accuracy_3mer_for_simulation == 'Moderate'",
+  #                                       tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
+  #                                       tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
+  # 
+  #                      conditionalPanel("input.accuracy_3mer_for_simulation == 'High'",
+  #                                       tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
+  #                                       tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
+  # 
+  #                      conditionalPanel("input.accuracy_3mer_for_simulation == 'Very High'",
+  #                                       tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
+  #                                       tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
+  # 
+  # 
+  # 
+  # 
+  #                      # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
+  #                      #                  sliderInput("NMF_iters_3mer_for_simulation", "Number of iterations for NMF step",
+  #                      #                              min = 10, max = 1000000,
+  #                      #                              value = 10, step = 1000)),
+  # 
+  #                      # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
+  #                      #                  sliderInput("Boot_iters_3mer_for_simulation", "Number of iterations for Bootstrap step",
+  #                      #                              min = 10, max = 500,
+  #                      #                              value = 10, step = 10)),
+  # 
+  #                      fluidRow(column(6,actionButton("start_3mer_for_simulation", "Start calculation",width = '150px',class="btn-success")))
+  #            )
+  # 
+  #          ),
+  # 
+  # 
+  #            shinyjs::hidden(
+  #              wellPanel(id="panel_3mer_results_sig_for_simulation",
+  #                        lapply(1:30, function(i) {plotOutput(paste0('p_3mer_for_simulation', i))}),
+  #                        hr(),
+  #                        downloadButton("down_sig_plot_3mer_for_simulation", "Download the plots",class="btn-primary")
+  #              )
+  #            ),
+  # 
+  #          shinyjs::hidden(
+  #            wellPanel(id='final_message_simulation',
+  #                      tags$div(class="header", checked=NA,
+  #                               tags$h4(strong('You can find the results in this directory: output/simulation/method1(or 2)'),
+  #                                       style="color:#0060DB"))
+  #            )
+  #          )
+  # 
+  # )
+  
+  
+  
   )
   )
   )
@@ -582,7 +610,7 @@ ui <- fluidPage(
 ############################################################################################################################################
 
 server <- function(input, output, session) {
- 
+  
   observeEvent(input$see_input_file_name,{
     shinyjs::hide("error_for_input_file_name")
     if(isolate(input$input_data_file_name) == '')
@@ -600,10 +628,12 @@ server <- function(input, output, session) {
         shinyjs::hide("error_for_input_file_name")
         shinyjs::disable("panelA")
         withProgress(message = 'Importing data', value = 0.5,{
-          input_table <<- read.table(paste0('data/',input_file_name),sep = '\t',header = T)  # A global variable
+          input_table <<- fread(paste0('data/',input_file_name),sep = '\t',header = T)  # A global variable
+          input_table <<- data.frame(input_table)
           if(length(dim(input_table)) >= 2  & dim(input_table)[2] == 1)
           {
-            input_table <<- read.table(paste0('data/',input_file_name),sep = ',',header = T)
+            input_table <<- fread(paste0('data/',input_file_name),sep = ',',header = T)
+            input_table <<- data.frame(input_table)
           }
           setProgress(1, detail = paste0("finished"))
         })
@@ -615,27 +645,33 @@ server <- function(input, output, session) {
         } else {
           shinyjs::hide("error_for_input_file_name")
 
-          data_format <<- isolate(input$file_format)   # A global variable
-          
-          if(data_format == 'ICGC'){
-            # ICGC format: ----------------------------------------------
-            required_col_names <- ICGC_required_columns
-            if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names)){
-              shinyjs::show("error_for_input_file_name")
-              output$error_for_input_file_name <- renderText({paste0('Error: Some required columns are missing in the input data.')})
-              shinyjs::enable("panelA")
-            } else {
-              shinyjs::hide("error_for_input_file_name")
-              shinyjs::show("success_for_input_file_name")
-              output$success_for_input_file_name <- renderText({paste0('The input data imported successfully.')})
-              shinyjs::disable("panelA")
-              shinyjs::show("panelB")
-            }
             
-          } else if(data_format == 'TCGA') {
-            shinyjs::alert("TCGA is not currently supported. We will solve it very soon! :)")
-            shinyjs::enable("panelA")
-          } else if (data_format == 'Other') {
+            
+            
+          # data_format <<- isolate(input$file_format)   # A global variable
+          
+          # if(data_format == 'ICGC'){
+          #   # ICGC format: ----------------------------------------------
+          #   required_col_names <- ICGC_required_columns
+          #   if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names)){
+          #     shinyjs::show("error_for_input_file_name")
+          #     output$error_for_input_file_name <- renderText({paste0('Error: Some required columns are missing in the input data.')})
+          #     shinyjs::enable("panelA")
+          #   } else {
+          #     shinyjs::hide("error_for_input_file_name")
+          #     shinyjs::show("success_for_input_file_name")
+          #     output$success_for_input_file_name <- renderText({paste0('The input data imported successfully.')})
+          #     shinyjs::disable("panelA")
+          #     shinyjs::show("panelB")
+          #   }
+            
+            
+          # } else if(data_format == 'TCGA') {
+          #   shinyjs::alert("TCGA is not currently supported. We will solve it very soon! :)")
+          #   shinyjs::enable("panelA")
+            
+            
+          # } else if (data_format == 'Other') {
             required_col_names <- Standard_columns
             if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names))
             {
@@ -649,14 +685,15 @@ server <- function(input, output, session) {
               shinyjs::disable("panelA")
               shinyjs::show("panelB")
             }
-          }
+          # }
         }
       }
     } 
   })
   
             
-            
+  
+
   observeEvent(input$continue_with_preprocessing,{
     shinyjs::disable("panelB")
           
@@ -678,25 +715,26 @@ server <- function(input, output, session) {
             unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
         setwd('..')
         
-        setwd('simulation')
-            setwd('method1')
-                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-            setwd('..')
-            setwd('method2')
-                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-            setwd('..')
-        setwd('..')
+        # setwd('simulation')
+        #     setwd('method1')
+        #         unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+        #     setwd('..')
+        #     setwd('method2')
+        #         unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+        #     setwd('..')
+        # setwd('..')
     setwd('..')
     # -------------------------------------------------------------------------
     
     
     
-    how_many <- isolate(input$how_many_cancers)
-    if(how_many == 1) {   # "Single Cancer Type" = 1
-      Max_N <<- 10
-    } else if(how_many ==  2) {   # "Multiple Cancer Types" = 2
-      Max_N <<- 30
-    }
+    # how_many <- isolate(input$how_many_cancers)
+    # if(how_many == 1) {   # "Single Cancer Type" = 1
+    #   Max_N <<- 10
+    # } else if(how_many ==  2) {   # "Multiple Cancer Types" = 2
+    #   Max_N <<- 30
+    # }
+    
     
     number_of_cpu_cores <<- isolate(input$CPU_cores)
     
@@ -707,35 +745,35 @@ server <- function(input, output, session) {
     withProgress(message = 'Preprocessing input data', value = 0,{
       
       setProgress(0.1, detail = 'Preparing the input table...')
-      if(data_format == 'ICGC')
-      {
-        required_col_names <- ICGC_required_columns
-        input_table <<- input_table[,required_col_names]
-        
-        # remove invalid rows ---------------------------------
-        invalid_rows <- c()
-        invalid_rows <- c(invalid_rows,which(input_table[,'chromosome_end'] - input_table[,'chromosome_start'] != 0))
-        if(length(invalid_rows) !=0 ){input_table <<- input_table[-invalid_rows,]}    # remove
-        
-        # remove invalid columns ------------------------------
-        invalid_colnames <- c('chromosome_end')
-        invalid_columns <- as.numeric(sapply(invalid_colnames,function(n){which(colnames(input_table) == n)}))
-        
-        input_table <<- input_table[,-invalid_columns] # remove
-        
-        # set the column names --------------------------------
-        colnames(input_table) <- c('sample_id','chromosome','position','reference','mutated_to')
-        
-        input_table <<- unique(input_table)
-
-      } else if(data_format == 'Other') {
+      # if(data_format == 'ICGC')
+      # {
+      #   required_col_names <- ICGC_required_columns
+      #   input_table <<- input_table[,required_col_names]
+      #   
+      #   # remove invalid rows ---------------------------------
+      #   invalid_rows <- c()
+      #   invalid_rows <- c(invalid_rows,which(input_table[,'chromosome_end'] - input_table[,'chromosome_start'] != 0))
+      #   if(length(invalid_rows) !=0 ){input_table <<- input_table[-invalid_rows,]}    # remove
+      #   
+      #   # remove invalid columns ------------------------------
+      #   invalid_colnames <- c('chromosome_end')
+      #   invalid_columns <- as.numeric(sapply(invalid_colnames,function(n){which(colnames(input_table) == n)}))
+      #   
+      #   input_table <<- input_table[,-invalid_columns] # remove
+      #   
+      #   # set the column names --------------------------------
+      #   colnames(input_table) <- c('sample_id','chromosome','position','reference','mutated_to')
+      #   
+      #   input_table <<- unique(input_table)
+      # 
+      # } else if(data_format == 'Other') {
         required_col_names <- Standard_columns
         input_table <<- input_table[,required_col_names]
         invalid_rows <- c()
         invalid_rows <- c(invalid_rows,    which(input_table[,'reference'] == '-' | input_table[,'mutated_to'] == '-')    )
         if(length(invalid_rows) !=0 ){input_table <<- input_table[-invalid_rows,]}    # remove
         input_table <<- unique(input_table)
-      }
+      # }
       
       
       
@@ -791,23 +829,27 @@ server <- function(input, output, session) {
           unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
       setwd('..')}
     
-    if(input$keep_or_not_simulation != 2){
-      setwd('simulation')
-          setwd('method1')
-              unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-          setwd('..')
-          setwd('method2')
-              unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-          setwd('..')
-      setwd('..')}
+    # if(input$keep_or_not_simulation != 2){
+    #   setwd('simulation')
+    #       setwd('method1')
+    #           unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+    #       setwd('..')
+    #       setwd('method2')
+    #           unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+    #       setwd('..')
+    #   setwd('..')}
     setwd('..')
     
-    how_many <- isolate(input$how_many_cancers)
-    if(how_many == 1) {   # "Single Cancer Type" = 1
-      Max_N <<- 10
-    } else if(how_many ==  2) {   # "Multiple Cancer Types" = 2
-      Max_N <<- 30
-    }
+    
+    
+    # how_many <- isolate(input$how_many_cancers)
+    # if(how_many == 1) {   # "Single Cancer Type" = 1
+    #   Max_N <<- 10
+    # } else if(how_many ==  2) {   # "Multiple Cancer Types" = 2
+    #   Max_N <<- 30
+    # }
+
+    
    
     number_of_cpu_cores <<- isolate(input$CPU_cores)
     
@@ -827,10 +869,12 @@ server <- function(input, output, session) {
     shinyjs::disable('panel_3mer_options')
     
     k_mer <- 3
-    accuracy <- input$accuracy_3mer
     
+    accuracy <- input$accuracy_3mer
     # NMF_iters <- input$NMF_iters_3mer
     # Boot_iters <- input$Boot_iters_3mer
+    
+    Max_N <- isolate(input$NMF_Max_N_3mer)
     
     file_name <- 'M3mer'
     destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
@@ -904,10 +948,15 @@ server <- function(input, output, session) {
         withProgress(message = 'Preprocess data', value = 0,{source('src/MakeSelectedM5mer.R',local = TRUE)})
       
         k_mer <- 5
+        
         accuracy <- input$accuracy_5mer
         # NMF_iters <- input$NMF_iters_5mer
         # Boot_iters <- input$Boot_iters_5mer
+        
+        Max_N <- isolate(input$NMF_Max_N_5mer)
+        
         file_name <- 'selectedM5mer'
+        
         destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
         
         withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
@@ -1084,74 +1133,74 @@ server <- function(input, output, session) {
   # ------------------------------------------------------------------------------------------------------------------
   # Simulation tab ---------------------------------------------------------------------------------------------------
   # ------------------------------------------------------------------------------------------------------------------
-  observeEvent(input$start_simulation,{
-    shinyjs::disable('panel_simulation_options')
-    if(isolate(input$simulation_method) == 1){
-      method <- 1
-    } else {
-      method <- 2
-    }
-    
-    withProgress(message = paste0('Simulation with method ',as.character(method),':'), value = 0,{
-      source('src/MakeRandom.R',local = TRUE)
-    })
-
-
-    input_table_file_name <- paste0('input_table_random_',as.character(method))
-    save_M5mer <- F
-    save_M3mer <- T
-    M3mer_file_name <- paste0('M3mer_random_',as.character(method))
-    withProgress(message = 'Preprocessing the simulated data', value = 0,{
-      source('src/CountMutations.R',local = TRUE)
-    })
-    
-    shinyjs::show('panel_3mer_options_for_simulation')
-  })
-  
-  
-  observeEvent(input$start_3mer_for_simulation,{
-    
-    shinyjs::disable('panel_3mer_options_for_simulation')
-    
-    if(isolate(input$simulation_method) == 1){
-      method <- 1
-    } else {
-      method <- 2
-    }
-    
-    k_mer <- 3
-    accuracy <- input$accuracy_3mer_for_simulation
-    # NMF_iters <- input$NMF_iters_3mer_for_simulation
-    # Boot_iters <- input$Boot_iters_3mer_for_simulation
-    file_name <- paste0('M3mer_random_',as.character(method))
-    destination_folder <- paste0("output/simulation/method",as.character(method),"/")
-    
-    withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
-    
-    N_opt_3mer_for_simulation <- as.numeric(unlist(read.table(paste0(destination_folder,'N_opt.txt'))))
-    
-    withProgress(message = 'Plotting the deciphered signatures...', value = 0.5,{
-      source('src/Plot3merSignatures.R',local = TRUE)
-      plt <- plot_signatures_3mer(N_opt_3mer_for_simulation)
-      # Saving the PDFs...
-      pdf(paste0(destination_folder,'Deciphered signatures (N=',as.character(N_opt_3mer_for_simulation),').pdf'),15,4)
-      for(j in 1:N_opt_3mer_for_simulation) {plot(plt[[j]])}
-      dev.off()
-      # Plotting in the UI
-      lapply(1:N_opt_3mer_for_simulation,function(i){output[[paste0('p_3mer_for_simulation', i)]] <- renderPlot({plot(plt[[i]])})})
-      for(j in 1:30) {shinyjs::hide(paste0('p_3mer_for_simulation', j))}
-      for(j in 1:N_opt_3mer_for_simulation) {shinyjs::show(paste0('p_3mer_for_simulation',j))}
-      #shinyjs::show('panel_3mer_results_sig_for_simulation')
-      shinyjs::show('final_message_simulation')
-      setProgress(1, detail = 'Finished!')
-    })
-    
-    output$down_sig_plot_3mer_for_simulation <- downloadHandler(
-      filename =  function() {paste0('Deciphered simulated signatures in 3-mer format for N=',as.character(N_opt_3mer_for_simulation),' (',Sys.time(),').pdf')},
-      content = function(file) {file.copy(paste0(destination_folder,'Deciphered signatures (N=',
-                                                 as.character(N_opt_3mer_for_simulation),').pdf'), file)})
-    
-  })
+  # observeEvent(input$start_simulation,{
+  #   shinyjs::disable('panel_simulation_options')
+  #   if(isolate(input$simulation_method) == 1){
+  #     method <- 1
+  #   } else {
+  #     method <- 2
+  #   }
+  #   
+  #   withProgress(message = paste0('Simulation with method ',as.character(method),':'), value = 0,{
+  #     source('src/MakeRandom.R',local = TRUE)
+  #   })
+  # 
+  # 
+  #   input_table_file_name <- paste0('input_table_random_',as.character(method))
+  #   save_M5mer <- F
+  #   save_M3mer <- T
+  #   M3mer_file_name <- paste0('M3mer_random_',as.character(method))
+  #   withProgress(message = 'Preprocessing the simulated data', value = 0,{
+  #     source('src/CountMutations.R',local = TRUE)
+  #   })
+  #   
+  #   shinyjs::show('panel_3mer_options_for_simulation')
+  # })
+  # 
+  # 
+  # observeEvent(input$start_3mer_for_simulation,{
+  #   
+  #   shinyjs::disable('panel_3mer_options_for_simulation')
+  #   
+  #   if(isolate(input$simulation_method) == 1){
+  #     method <- 1
+  #   } else {
+  #     method <- 2
+  #   }
+  #   
+  #   k_mer <- 3
+  #   accuracy <- input$accuracy_3mer_for_simulation
+  #   # NMF_iters <- input$NMF_iters_3mer_for_simulation
+  #   # Boot_iters <- input$Boot_iters_3mer_for_simulation
+  #   file_name <- paste0('M3mer_random_',as.character(method))
+  #   destination_folder <- paste0("output/simulation/method",as.character(method),"/")
+  #   
+  #   withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
+  #   
+  #   N_opt_3mer_for_simulation <- as.numeric(unlist(read.table(paste0(destination_folder,'N_opt.txt'))))
+  #   
+  #   withProgress(message = 'Plotting the deciphered signatures...', value = 0.5,{
+  #     source('src/Plot3merSignatures.R',local = TRUE)
+  #     plt <- plot_signatures_3mer(N_opt_3mer_for_simulation)
+  #     # Saving the PDFs...
+  #     pdf(paste0(destination_folder,'Deciphered signatures (N=',as.character(N_opt_3mer_for_simulation),').pdf'),15,4)
+  #     for(j in 1:N_opt_3mer_for_simulation) {plot(plt[[j]])}
+  #     dev.off()
+  #     # Plotting in the UI
+  #     lapply(1:N_opt_3mer_for_simulation,function(i){output[[paste0('p_3mer_for_simulation', i)]] <- renderPlot({plot(plt[[i]])})})
+  #     for(j in 1:30) {shinyjs::hide(paste0('p_3mer_for_simulation', j))}
+  #     for(j in 1:N_opt_3mer_for_simulation) {shinyjs::show(paste0('p_3mer_for_simulation',j))}
+  #     #shinyjs::show('panel_3mer_results_sig_for_simulation')
+  #     shinyjs::show('final_message_simulation')
+  #     setProgress(1, detail = 'Finished!')
+  #   })
+  #   
+  #   output$down_sig_plot_3mer_for_simulation <- downloadHandler(
+  #     filename =  function() {paste0('Deciphered simulated signatures in 3-mer format for N=',as.character(N_opt_3mer_for_simulation),' (',Sys.time(),').pdf')},
+  #     content = function(file) {file.copy(paste0(destination_folder,'Deciphered signatures (N=',
+  #                                                as.character(N_opt_3mer_for_simulation),').pdf'), file)})
+  #   
+  # })
   
   
   

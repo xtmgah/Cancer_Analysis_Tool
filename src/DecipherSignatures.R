@@ -214,7 +214,7 @@ for(N in c(start_N:Max_N))
   
   ## Step 4 (Iterate)
   
-  #incProgress(increment_progress_by, detail = paste0("\nN = ",as.character(N)," : Performing NMF"))
+  incProgress(increment_progress_by, detail = paste0("\nN = ",as.character(N)," : Performing NMF"))
   #Sys.sleep(0.01)
   
   
@@ -327,7 +327,7 @@ for(N in c(start_N:Max_N))
     cat('--------------- Clustering the results\n')
     
     ## Step 5 (Clustering)
-    #incProgress(increment_progress_by, detail = paste0("N = ",as.character(N)," : Clustering"))
+    incProgress(increment_progress_by, detail = paste0("N = ",as.character(N)," : Clustering"))
     
     
     ##############################################################################################################################
@@ -450,7 +450,7 @@ for(N in c(start_N:Max_N))
   cat(paste0('----- ','Evaluating the clusters and saving the final results\n'))
   
   ## Step 6 (Evaluate)
-  #incProgress(increment_progress_by, detail = paste0("N = ",as.character(N)," : Evaluation of clustering result..."))
+  incProgress(increment_progress_by, detail = paste0("N = ",as.character(N)," : Evaluation of clustering result..."))
   
   
   
