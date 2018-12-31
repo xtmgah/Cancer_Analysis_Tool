@@ -53,7 +53,7 @@ The overall procedure of using this tool is as follows:
 
 _The "**data** folder", "**output** folder" and "**result** folder" are interactively manipulated by the user and the tool._
 
-Once the user-interface is opened, you will see the **Preprocessing tab** where you can specify the input data file and get the tool to perform preprocessing necessary for analyzing the data. After this step, you will be shown the main tabs of the tool: **3-mer signatures tab**, **5-mer signatures tab** and **Clustering tab**. We will describe them in more detail below.
+Once the user-interface is opened, you will see the **Preprocessing tab** where you can specify the input data file and get the tool to perform preprocessing necessary for analyzing the data. After this step, you will be shown the main tabs of the tool: **3-mer signatures tab**, **5-mer signatures tab** and **Clustering tab**.
 
 Preprocessing tab
 -----------------
