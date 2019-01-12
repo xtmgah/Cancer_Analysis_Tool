@@ -13,7 +13,9 @@ Table of contents
     * [Overview](#overview)
     * [Preprocessing tab](#preprocessing-tab)
     * [3-mer signatures tab](#3-mer-signatures-tab)
+    * [Using the output](#using-the-output)
     * [Terminate or Restart](#terminate-or-restart)
+
 
 
 Prerequisites
@@ -80,7 +82,16 @@ Using the scripts in this tool, you can visualize the resultant 3-mer mutational
 ![2 with arrows](https://user-images.githubusercontent.com/36207812/49217716-918f1800-f3e3-11e8-9095-a69e6c83a1b1.png)
 
 
+Using the output
+-----------------
+![2 with arrows](https://user-images.githubusercontent.com/16561858/51072201-24bd9d80-1672-11e9-9c8f-c288d99d04a0.png)
+
+
 Terminate or Restart
 -----------------
 To terminate the tool, close the corresponding terminal window.  
 To restart the tool, just double click on the **_Run_** file again.
+
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTIzMjczNDAxMF19
+-->
