@@ -39,6 +39,7 @@ You need to have **R** installed on your machine. In addition, the following **R
 * reshape2
 * shiny
 * shinyjs
+* shinyWidgets
 * rhandsontable
 
 Usage
