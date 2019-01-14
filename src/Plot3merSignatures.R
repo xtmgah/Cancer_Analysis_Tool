@@ -1,5 +1,7 @@
 library(ggplot2)
 library(grid)
+library(ggpubr)
+library(gridExtra)
 
 #rm(list=ls(all=TRUE))
 #graphics.off()
@@ -12,7 +14,7 @@ plot_signatures_3mer <- function(N)
   
   M <- matrix(rep(0,96*N),ncol = N)
   rem <- simplify2array(read.table(paste0(destination_folder,'remaining_mut_types.txt')))
-  for(i in 1:N){M[rem,i] <- P[,i]}
+  for(i in 1:N){M[rem,i] <- 100 * P[,i]}
   M <- as.data.frame(M)
   
   A1 <- c()
@@ -60,20 +62,32 @@ plot_signatures_3mer <- function(N)
           geom_text(aes(label=mut_id), vjust=-1.5, colour="black",size = 2)+
           theme_bw()+
           theme(legend.position="none")+
-          ylab("Contribution of each mutation type")+
-          labs(title = paste0('Signature ',as.character(n)))+
-          theme(plot.title = element_text(size=20, face="bold",hjust = 0.5),
+          ylab("Contribution (%)")+
+          labs(title = paste0('Signature No. ',as.character(n)))+
+          theme(plot.title = element_text(size=28, 
+                                          #face="bold",
+                                          hjust = 0.5,
+                                          vjust = 5),
                 panel.border = element_rect(color = "gray"))+
 
           
           scale_fill_manual(values=c(col1,col2,col3,col4,col5,col6))+
           
           
-          theme(panel.grid.major = element_blank())+
-    
           theme(axis.title.x=element_blank(),
                 axis.text.x=element_blank(),
-                axis.ticks.x=element_blank())+
+                axis.ticks.x=element_blank(),
+                
+                axis.text.y=element_text(size = 25,angle = 90, hjust = 0.5,colour = 'black'),
+                axis.title.y=element_text(size = 25, margin = margin(t = 0, r = 20, b = 0, l = 0))#,
+                #axis.text.y=element_blank()
+                )+
+      
+          theme(panel.grid.minor.y = element_blank(),
+                panel.grid.major.x = element_blank())+
+        
+          theme(plot.margin = unit(c(1,0.5,0.5,0.5), "cm"))+
+          
     
           scale_y_continuous(expand = c(0.025,0),limits = c(-3*top/30-top/30,top*1.3))+
     
@@ -118,18 +132,37 @@ plot_signatures_3mer <- function(N)
           geom_rect(xmin=65-0.33, xmax=80+0.33, ymin=top*1.1, ymax=top*1.19,fill = col5)+
           geom_rect(xmin=81-0.33, xmax=96+0.33, ymin=top*1.1, ymax=top*1.19,fill = col6)+
       
+      
           annotate(geom="text", x=8, y=top*1.26, label='C > A',
-                   color="black",size = 5,fontface = 'bold',family='sans')+
+                   color="black",size = 9,
+                   #fontface = 'bold',
+                   family='sans')+
+      
           annotate(geom="text", x=8+16, y=top*1.26, label='C > G',
-                   color="black",size = 5,fontface = 'bold',family='sans')+
+                   color="black",size = 9,
+                   #fontface = 'bold',
+                   family='sans')+
+      
           annotate(geom="text", x=8+16*2, y=top*1.26, label='C > T',
-                   color="black",size = 5,fontface = 'bold',family='sans')+
+                   color="black",size = 9,
+                   #fontface = 'bold',
+                   family='sans')+
+      
           annotate(geom="text", x=8+16*3, y=top*1.26, label='T > A',
-                   color="black",size = 5,fontface = 'bold',family='sans')+
+                   color="black",size = 9,
+                   #fontface = 'bold',
+                   family='sans')+
+      
           annotate(geom="text", x=8+16*4, y=top*1.26, label='T > C',
-                   color="black",size = 5,fontface = 'bold',family='sans')+
+                   color="black",size = 9,
+                   #fontface = 'bold',
+                   family='sans')+
+      
           annotate(geom="text", x=8+16*5, y=top*1.26, label='T > G',
-                   color="black",size = 5,fontface = 'bold',family='sans')
+                   color="black",size = 9,
+                   #fontface = 'bold',
+                   family='sans')
+    
     return(gg)    
   }
   
@@ -140,28 +173,5 @@ plot_signatures_3mer <- function(N)
   
   return(plots)
 }
-
-# for(i in 1:5)
-# {
-#   pdf(paste0('output/signatures/3_mer/N',as.character(i),'.pdf'),15,4)
-#   plt <- plot_signatures(i)
-#   for(j in 1:i)
-#   {
-#     plot(plt[[j]])
-#   }
-#   dev.off()
-# }
-
-
-
-# plts <- plot_signatures_3mer(3)
-# pdf(paste0(destination_folder,'N',as.character(length(plts)),'.pdf'),15,4)
-# for(i in 1:length(plts))
-# {
-#   plot(plts[[i]])
-# }
-# dev.off()
-
-
 
 

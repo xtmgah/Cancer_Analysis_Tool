@@ -1,8 +1,13 @@
 suppressMessages(library(shiny))
 suppressMessages(library(shinyjs))
+
+suppressMessages(library(shinyWidgets))
+
 suppressMessages(library(rhandsontable))
 suppressMessages(library(parallel))
 suppressMessages(library(data.table))
+
+suppressMessages(library(ggplot2))
 
 
 rm(list=ls(all=TRUE))
@@ -115,7 +120,7 @@ ui <- fluidPage(
                             
                             
                             
-                            textInput("input_data_file_name", label=NA),
+                            textInput("input_data_file_name", label=NA,width = '50%'),
                             hr(),
                             
                             
@@ -155,6 +160,7 @@ ui <- fluidPage(
                             # tags$style(type = "text/css", ".irs-grid-pol.small {height: 0px;}"),
                             sliderInput("CPU_cores", "Number of CPU cores for parallelization",
                                          min =1 , max = detectCores(),
+                                         width = '50%',
                                          value = ceiling(detectCores()/2), step = 1),
                             
                             hr(),
@@ -250,70 +256,127 @@ ui <- fluidPage(
            
            titlePanel("Extract mutational signatures based on 3-mer motifs"),
            
-           wellPanel(id="panel_3mer_options",
-                     tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
-                                                                 style="color:#0060DB")),
-                     radioButtons(inputId="accuracy_3mer",
-                                  label=NA,
-                                  choices=c('Moderate','High','Very High')),#,'Custom'))
-                     
-                     conditionalPanel("input.accuracy_3mer == 'Moderate'",
-                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
-                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
-                     
-                     conditionalPanel("input.accuracy_3mer == 'High'",
-                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
-                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
-                     
-                     conditionalPanel("input.accuracy_3mer == 'Very High'",
-                                      tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
-                                      tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
-                     
-                     
-                  
-                     
-                     # conditionalPanel("input.accuracy_3mer == 'Custom'",
-                     #                  sliderInput("NMF_iters_3mer", "Number of iterations for NMF step",
-                     #                  min = 10, max = 100000,
-                     #                  value = 10, step = 100)),
-                     
-                     # conditionalPanel("input.accuracy_3mer == 'Custom'",
-                     #                  sliderInput("Boot_iters_3mer", "Number of iterations for Bootstrap step",
-                     #                  min = 10, max = 500,
-                     #                  value = 10, step = 10),hr()),
-                     
-                     
-                     tags$div(class="header", checked=NA,tags$h4(strong("Select N-Max (the tool will search for optimum number of signatures from 1 to N-Max):"),
-                                                                 style="color:#0060DB")),
-                     sliderInput("NMF_Max_N_3mer", "",
-                                 width = '50%',
-                                 min = 2, max = 50,
-                                 value = 10, step = 1),
-                     
-                     
-                     fluidRow(column(6,actionButton("start_3mer", "Start calculation",width = '150px',class="btn-success")))
-                     ),
            
-           hr(),
+           tabsetPanel(
+               tabPanel(h4("New Analysis"), 
+                        
+                        
+                        wellPanel(id="panel_3mer_options",
+                                  tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
+                                                                              style="color:#0060DB")),
+                                  radioButtons(inputId="accuracy_3mer",
+                                               label=NA,
+                                               choices=c('Moderate','High','Very High')),#,'Custom'))
+                                  
+                                  conditionalPanel("input.accuracy_3mer == 'Moderate'",
+                                                   tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
+                                                   tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
+                                  
+                                  conditionalPanel("input.accuracy_3mer == 'High'",
+                                                   tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
+                                                   tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
+                                  
+                                  conditionalPanel("input.accuracy_3mer == 'Very High'",
+                                                   tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
+                                                   tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
+                                  
+                                  
+                                  
+                                  
+                                  # conditionalPanel("input.accuracy_3mer == 'Custom'",
+                                  #                  sliderInput("NMF_iters_3mer", "Number of iterations for NMF step",
+                                  #                  min = 10, max = 100000,
+                                  #                  value = 10, step = 100)),
+                                  
+                                  # conditionalPanel("input.accuracy_3mer == 'Custom'",
+                                  #                  sliderInput("Boot_iters_3mer", "Number of iterations for Bootstrap step",
+                                  #                  min = 10, max = 500,
+                                  #                  value = 10, step = 10),hr()),
+                                  
+                                  
+                                  tags$div(class="header", checked=NA,tags$h4(strong("Select N-Max (the tool will search for optimum number of signatures from 1 to N-Max):"),
+                                                                              style="color:#0060DB")),
+                                  sliderInput("NMF_Max_N_3mer", "",
+                                              width = '50%',
+                                              min = 2, max = 50,
+                                              value = 10, step = 1),
+                                  
+                                  
+                                  fluidRow(column(6,actionButton("start_3mer", "Start",class="btn-success", width = '150px')))
+                        )
+                        
+                        
+                        
+                        
+                        
+                        ),
+               tabPanel(h4("Results"),
+                        wellPanel(
+                            fluidRow(column(11,
+                                            
+                                            
+                                            # h5('Get evaluation diagram for determining the optimum number of clusters:'),
+                                     tags$div(class="header", checked=NA,tags$h4(
+                                         strong('Get the evaluation diagram for determining the optimum number of clusters:'),
+                                         style="color:#0060DB"))
+                            ),
+                                     
+                                     column(1,
+                                            downloadButton("download_3mer_eval", "",class="btn-info", width = '100%'),
+                                            tags$style(type='text/css', "#download_3mer_eval {height: 35px; margin-bottom:12px}"))),
+                            hr(),
+                            fluidRow(column(9,
+                                            # h5('Get plots of mutational signatures (select the optimum number of signatures first):'),
+                                            
+                                            tags$div(class="header", checked=NA,tags$h4(
+                                                strong('Get the plots of mutational signatures (select the optimum number of signatures):'),
+                                                style="color:#0060DB"))
+                                            
+                                            ),
+                                     column(2,align="right",
+                                            numericInput('num_3mer_sigs', label=NULL, value=0, min = 2, max = 50, step = 1,width = '50%'),
+                                            tags$style(type='text/css', "#num_3mer_sigs {height: 35px; margin-bottom:2px}")),
+                                     column(1,
+                                            downloadButton("download_3mer_signatures", "",class="btn-info",width = '100%'),
+                                            tags$style(type='text/css', "#download_3mer_signatures {height: 35px; margin-bottom:2px}"))),
+                            hr(),
+                            fluidRow(column(11,
+                                            # h5('Get the output files:'),
+                                            
+                                            tags$div(class="header", checked=NA,tags$h4(
+                                                strong('Get output files:'),
+                                                style="color:#0060DB"))
+                                            
+                                            ),
+                                     column(1,
+                                            downloadButton("download_files_3mer", "",class="btn-info", width = '100%'),
+                                            tags$style(type='text/css', "#download_files_3mer {height: 35px; margin-bottom:12px}")))
+                            )
+                        )
+           )
            
-           shinyjs::hidden(
-             wellPanel(id="panel_3mer_results_sig",
-                       lapply(1:30, function(i) {plotOutput(paste0('p_3mer', i))}),
-                       hr(),
-                       downloadButton("down_sig_plot_3mer", "Download the plots",class="btn-primary")
-                       )
-             ),
            
-           shinyjs::hidden(
-             wellPanel(id='final_message_3mer',
-                       tags$div(class="header", checked=NA,
-                                tags$h4(strong('You can find the results in this directory: output/signatures/3_mer/'),
-                                        style="color:#0060DB"))
-                       )
-           ),
-           
-           
-           hr()
+           # ,
+           # hr(),
+           # 
+           # shinyjs::hidden(
+           #   wellPanel(id="panel_3mer_results_sig",
+           #             lapply(1:30, function(i) {plotOutput(paste0('p_3mer', i))}),
+           #             hr(),
+           #             downloadButton("down_sig_plot_3mer", "Download the plots",class="btn-primary")
+           #             )
+           #   ),
+           # 
+           # shinyjs::hidden(
+           #   wellPanel(id='final_message_3mer',
+           #             tags$div(class="header", checked=NA,
+           #                      tags$h4(strong('You can find the results in this directory: output/signatures/3_mer/'),
+           #                              style="color:#0060DB"))
+           #             )
+           # ),
+           # 
+           # 
+           # hr()
            
   ),
 
@@ -384,7 +447,7 @@ ui <- fluidPage(
                                  value = 10, step = 1),
                      
                      
-                     fluidRow(column(6,actionButton("start_5mer", "Start calculation",width = '150px',class="btn-success")))
+                     fluidRow(column(6,actionButton("start_5mer", "Start",class="btn-success", width = '150px')))
            ),
            
            hr(),
@@ -470,7 +533,7 @@ ui <- fluidPage(
                                     ),
                      
                      conditionalPanel('input.clustering_options_1',
-                                      actionButton("start_clustering", "Start clustering",width = '150px',class="btn-success")
+                                      actionButton("start_clustering", "Start clustering",class="btn-success", width = '150px')
                                     ),
                      
                      textOutput("select_motif_error_3mer_clst"),
@@ -524,7 +587,7 @@ ui <- fluidPage(
   # 
   #                    hr(),
   # 
-  #                    actionButton("start_simulation", "Start simulation",width = '150px',class="btn-success")
+  #                    actionButton("start_simulation", "Start simulation",class="btn-success")
   # 
   #          ),
   # 
@@ -567,7 +630,7 @@ ui <- fluidPage(
   #                      #                              min = 10, max = 500,
   #                      #                              value = 10, step = 10)),
   # 
-  #                      fluidRow(column(6,actionButton("start_3mer_for_simulation", "Start calculation",width = '150px',class="btn-success")))
+  #                      fluidRow(column(6,actionButton("3mer_for_simulation", "Start",width = '150px',class="btn-success")))
   #            )
   # 
   #          ),
@@ -864,47 +927,177 @@ server <- function(input, output, session) {
   # ------------------------------------------------------------------------------------------------------------------
   # 3-mer tab --------------------------------------------------------------------------------------------------------
   # ------------------------------------------------------------------------------------------------------------------
+  
   observeEvent(input$start_3mer,{
-    
-    shinyjs::disable('panel_3mer_options')
-    
-    k_mer <- 3
-    
-    accuracy <- input$accuracy_3mer
-    # NMF_iters <- input$NMF_iters_3mer
-    # Boot_iters <- input$Boot_iters_3mer
-    
-    Max_N <- isolate(input$NMF_Max_N_3mer)
-    
-    file_name <- 'M3mer'
-    destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
-    
-    withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
-    
-    N_opt_3mer <- as.numeric(unlist(read.table('output/signatures/3_mer/N_opt.txt')))
-    
-    withProgress(message = 'Plotting the deciphered signatures...', value = 0.5,{
-      source('src/Plot3merSignatures.R',local = TRUE)
-      plt <- plot_signatures_3mer(N_opt_3mer)
-      # Saving the PDFs...
-      pdf(paste0('output/signatures/3_mer/Deciphered signatures (N=',as.character(N_opt_3mer),').pdf'),15,4)
-      for(j in 1:N_opt_3mer) {plot(plt[[j]])}
-      dev.off()
-      # Plotting in the UI
-      lapply(1:N_opt_3mer,function(i){output[[paste0('p_3mer', i)]] <- renderPlot({plot(plt[[i]])})})
-      for(j in 1:30) {shinyjs::hide(paste0('p_3mer', j))}
-      for(j in 1:N_opt_3mer) {shinyjs::show(paste0('p_3mer',j))}
-      #shinyjs::show('panel_3mer_results_sig')
-      shinyjs::show('final_message_3mer')
-      setProgress(1, detail = 'Finished!')
-    })
-    
-    output$down_sig_plot_3mer <- downloadHandler(
-      filename =  function() {paste0('Deciphered signatures in 3-mer format for N=',as.character(N_opt_3mer),' (',Sys.time(),').pdf')},
-      content = function(file) {file.copy(paste0('output/signatures/3_mer/Deciphered signatures (N=',
-                                                 as.character(N_opt_3mer),').pdf'), file)})
-    
+  
+      confirmSweetAlert(
+          session = session,
+          inputId = "confirm_start_3mer",
+          type = "warning",
+          title = "The previous results for 3-mer signatures will be deleted. Continue?",
+          btn_labels = c("Cancel", "Continue"),
+          danger_mode = TRUE
+      )
   })
+  
+  observeEvent(input$confirm_start_3mer, {
+      if (isTRUE(input$confirm_start_3mer)) {
+          
+          shinyjs::disable('panel_3mer_options')
+
+          k_mer <- 3
+
+          
+          
+          # first, delete the contents or output/signatures/3_mer
+          setwd('output/signatures/3_mer')
+          unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+          setwd('../../..')
+          
+          
+          
+          
+                    
+          accuracy <- input$accuracy_3mer
+          # NMF_iters <- input$NMF_iters_3mer
+          # Boot_iters <- input$Boot_iters_3mer
+          
+          Max_N <- isolate(input$NMF_Max_N_3mer)
+          
+          file_name <- 'M3mer'
+          destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
+          
+          withProgress(message = 'Extracting mutational signatures', value = 0,{source('src/DecipherSignatures.R',local = TRUE)})
+          
+          N_opt_3mer <- as.numeric(unlist(read.table('output/signatures/3_mer/N_opt.txt')))
+          
+          withProgress(message = 'Plotting the deciphered signatures...', value = 0.5,{
+              source('src/Plot3merSignatures.R',local = TRUE)
+              plt <- plot_signatures_3mer(N_opt_3mer)
+              # Saving the PDFs...
+              pdf(paste0('output/signatures/3_mer/Deciphered signatures (N=',as.character(N_opt_3mer),').pdf'),15,4)
+              for(j in 1:N_opt_3mer) {plot(plt[[j]])}
+              dev.off()
+              # Plotting in the UI
+              lapply(1:N_opt_3mer,function(i){output[[paste0('p_3mer', i)]] <- renderPlot({plot(plt[[i]])})})
+              for(j in 1:30) {shinyjs::hide(paste0('p_3mer', j))}
+              for(j in 1:N_opt_3mer) {shinyjs::show(paste0('p_3mer',j))}
+              #shinyjs::show('panel_3mer_results_sig')
+              # shinyjs::show('final_message_3mer')
+              setProgress(1, detail = 'Finished!')
+          })
+          
+          # output$down_sig_plot_3mer <- downloadHandler(
+          #     filename =  function() {paste0('Deciphered signatures in 3-mer format for N=',as.character(N_opt_3mer),' (',Sys.time(),').pdf')},
+          #     content = function(file) {file.copy(paste0('output/signatures/3_mer/Deciphered signatures (N=',
+          #                                                as.character(N_opt_3mer),').pdf'), file)})
+          
+          sendSweetAlert(
+              session = session,
+              title = "Finished",
+              text = 'See the "Results" tab.',
+              type = "success"
+          )
+          shinyjs::enable('panel_3mer_options')
+          
+      }
+  }, ignoreNULL = TRUE)
+  
+  
+  plot_eval_diagram_3mer <- function(){
+      
+      k_mer <- 3
+      destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
+      e <- read.table(paste0(destination_folder,"Evaluation.txt"))
+      n <- e[,1]
+      repro <- e[,2]
+      frobe <- e[,3]
+      frobe <- frobe/max(frobe)
+      
+      ## add extra space to right margin of plot within frame
+      par(mar=c(5, 5, 4, 6) + 0.5)
+      
+      ymin <- 0.1
+      
+      ## Plot the second plot and put axis scale on right
+      plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
+           type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
+      
+      grid(lwd = 2)
+      
+      ## Allow a second plot on the same graph
+      par(new=TRUE)
+      
+      plot(n, frobe, pch=20,  xlab="", ylab="", ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25),
+           axes=FALSE, type="p", col="blue",frame.plot = FALSE)
+      ## a little farther out (line=4) to make room for labels
+      mtext("Relative Frobenius Reconstruction Error",side=4,col="blue",line=2.5)
+      axis(4,lwd = 2, ylim=range(frobe), col="blue",col.axis="blue",las=1)
+      
+      ## Allow a second plot on the same graph
+      par(new=TRUE)
+      
+      ## Plot first set of data and draw its axis
+      plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
+           type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
+      lines(n, repro,col='red')
+      axis(2, lwd = 2,ylim=range(repro),col="red",col.axis="red",las=1)  ## las=1 makes horizontal labels
+      mtext("Signatures Reproducibility",side=2,col ="red",line=3.75)
+      
+      ## Draw the time axis
+      axis(1,(n[1]-1):(n[length(n)]+1))
+      mtext("Number of mutational signatures",side=1,col="black",line=2.5)
+      
+  }    
+  output$download_3mer_eval <- downloadHandler(
+          filename = function() { paste0('Evaluation_diagram(for 3-mer signatures).pdf') },
+          content = function(file) {
+              withProgress(message = 'Downloading...', value = 0.5,{
+                  ggsave(file, plot = plot_eval_diagram_3mer(), device = "pdf")
+                  setProgress(1)
+              })
+          }
+  )
+  
+  
+  
+  
+  # num_3mer_sigs
+  plot_sigs_3mer <- function(){
+      k_mer <- 3
+      destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
+      source('src/Plot3merSignatures.R',local = TRUE)
+      plt <- plot_signatures_3mer(9)
+      for(p in plt){
+          plot(p)
+      }
+  }
+  output$download_3mer_signatures <- downloadHandler(
+      filename = function() { paste0('Signatures(3-mer).pdf') },
+      content = function(file) {
+          withProgress(message = 'Downloading...', value = 0.5,{
+              ggsave(file, plot = plot_sigs_3mer(), device = "pdf", width = 18, height = 5)
+              setProgress(1)
+          })
+      }
+  )
+
+  
+  
+  # plot_eval_diagram <- function()
+  # {
+
+  # }
+  # 
+  # pdf(paste0(destination_folder,"Evaluation_diagram.pdf"))
+  # plot_eval_diagram()
+  # dev.off()
+
+
+  
+  
+  
+  
   
  
   

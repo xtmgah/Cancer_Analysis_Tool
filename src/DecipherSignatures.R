@@ -6,6 +6,7 @@ cat(paste0('Deciphering ',as.character(k_mer),'-mer mutational signatures...\n')
 #local_lib_path <- paste0(getwd(),'/../R_libs')
 #.libPaths(c(.libPaths(),local_lib_path))
 suppressMessages(library(doParallel))
+suppressMessages(library(data.table))
 
 
 
@@ -75,9 +76,9 @@ if(length(inds) != 0)
 }
 M <- matrix(M, ncol = G)
 remaining_mut_types <- setdiff(c(1:len),inds)  # mutation types that are present after step 1
-write.table(remaining_mut_types,
-            file=paste0(destination_folder,"remaining_mut_types.txt"),
-            row.names = FALSE,col.names = FALSE)
+# write.table(remaining_mut_types,
+#             file=paste0(destination_folder,"remaining_mut_types.txt"),
+#             row.names = FALSE,col.names = FALSE)
 rm(t,r,large,inds,s,i)
 K <- dim(M)[1]
 
@@ -489,7 +490,17 @@ for(N in c(start_N:Max_N))
   }
   
   write(c(N,avg_silh_widths,re.E),file=paste0(destination_folder,"Evaluation.txt"),append=(N!=1))
-  write.table(centroids,paste0(destination_folder,"P-n-",as.character(N),".txt"))
+  
+  
+  
+  
+  P <- matrix(rep(0,96*N),ncol = N)
+  for(i in 1:N){P[remaining_mut_types, i] <- centroids[, i]}
+  write.table(P, paste0(destination_folder,"P-n-",as.character(N),".txt"))
+  
+  
+  
+  
   if(length(zero_samples) != 0)
   {
     exposures_complete <- matrix(0,N,(G+length(zero_samples)))         # At the end, we include zero samples by inserting sxtra zero columns into matrix E.
@@ -528,63 +539,63 @@ cat('\nAll calculations finished!\n')
 ########################################################################################################
 ########################################################################################################
 
-cat('\nPlotting the evaluation diagram...')
-
-plot_eval_diagram <- function()
-{
-  e <- read.table(paste0(destination_folder,"Evaluation.txt"))
-  n <- e[,1]
-  repro <- e[,2]
-  frobe <- e[,3]
-  frobe <- frobe/max(frobe)
-  
-  ## add extra space to right margin of plot within frame
-  par(mar=c(5, 5, 4, 6) + 0.5)
-  
-  ymin <- 0.1
-  
-  ## Plot the second plot and put axis scale on right
-  plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
-       type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
-  
-  grid(lwd = 2)
-  
-  ## Allow a second plot on the same graph
-  par(new=TRUE)
-  
-  plot(n, frobe, pch=20,  xlab="", ylab="", ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25),
-       axes=FALSE, type="p", col="blue",frame.plot = FALSE)
-  ## a little farther out (line=4) to make room for labels
-  mtext("Relative Frobenius Reconstruction Error",side=4,col="blue",line=2.5)
-  axis(4,lwd = 2, ylim=range(frobe), col="blue",col.axis="blue",las=1)
-  
-  ## Allow a second plot on the same graph
-  par(new=TRUE)
-  
-  ## Plot first set of data and draw its axis
-  plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
-       type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
-  lines(n, repro,col='red')
-  axis(2, lwd = 2,ylim=range(repro),col="red",col.axis="red",las=1)  ## las=1 makes horizontal labels
-  mtext("Signatures Reproducibility",side=2,col ="red",line=3.75)
-  
-  ## Draw the time axis
-  axis(1,(n[1]-1):(n[length(n)]+1))
-  mtext("Number of mutational signatures",side=1,col="black",line=2.5)
-}
-
-pdf(paste0(destination_folder,"Evaluation_diagram.pdf"))
-plot_eval_diagram()
-dev.off()
-
-
-e <- read.table(paste0(destination_folder,"Evaluation.txt"))
-repro <- e$V2
-Drop_in_repro <- sapply(c(1:(length(repro)-1)),function(i){return(repro[i]-repro[i+1])})
-N_opt <- order(-Drop_in_repro)[1]
-write.table(N_opt,file=paste0(destination_folder,"N_opt.txt"),row.names=F,col.names=F)
-
-cat('Done\n')
+# cat('\nPlotting the evaluation diagram...')
+# 
+# plot_eval_diagram <- function()
+# {
+#   e <- read.table(paste0(destination_folder,"Evaluation.txt"))
+#   n <- e[,1]
+#   repro <- e[,2]
+#   frobe <- e[,3]
+#   frobe <- frobe/max(frobe)
+#   
+#   ## add extra space to right margin of plot within frame
+#   par(mar=c(5, 5, 4, 6) + 0.5)
+#   
+#   ymin <- 0.1
+#   
+#   ## Plot the second plot and put axis scale on right
+#   plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
+#        type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
+#   
+#   grid(lwd = 2)
+#   
+#   ## Allow a second plot on the same graph
+#   par(new=TRUE)
+#   
+#   plot(n, frobe, pch=20,  xlab="", ylab="", ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25),
+#        axes=FALSE, type="p", col="blue",frame.plot = FALSE)
+#   ## a little farther out (line=4) to make room for labels
+#   mtext("Relative Frobenius Reconstruction Error",side=4,col="blue",line=2.5)
+#   axis(4,lwd = 2, ylim=range(frobe), col="blue",col.axis="blue",las=1)
+#   
+#   ## Allow a second plot on the same graph
+#   par(new=TRUE)
+#   
+#   ## Plot first set of data and draw its axis
+#   plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
+#        type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
+#   lines(n, repro,col='red')
+#   axis(2, lwd = 2,ylim=range(repro),col="red",col.axis="red",las=1)  ## las=1 makes horizontal labels
+#   mtext("Signatures Reproducibility",side=2,col ="red",line=3.75)
+#   
+#   ## Draw the time axis
+#   axis(1,(n[1]-1):(n[length(n)]+1))
+#   mtext("Number of mutational signatures",side=1,col="black",line=2.5)
+# }
+# 
+# pdf(paste0(destination_folder,"Evaluation_diagram.pdf"))
+# plot_eval_diagram()
+# dev.off()
+# 
+# 
+# e <- read.table(paste0(destination_folder,"Evaluation.txt"))
+# repro <- e$V2
+# Drop_in_repro <- sapply(c(1:(length(repro)-1)),function(i){return(repro[i]-repro[i+1])})
+# N_opt <- order(-Drop_in_repro)[1]
+# write.table(N_opt,file=paste0(destination_folder,"N_opt.txt"),row.names=F,col.names=F)
+# 
+# cat('Done\n')
 
 
 
