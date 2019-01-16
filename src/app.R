@@ -167,8 +167,6 @@ ui <- fluidPage(
                             
                             actionButton("see_input_file_name", "Import new data and perform preprocessing",class="btn-success"),
                             
-                            textOutput("error_for_input_file_name"),
-                            tags$head(tags$style("#error_for_input_file_name{color: red;font-size: 100%;}")),
                             textOutput("success_for_input_file_name"),
                             tags$head(tags$style("#success_for_input_file_name{color: #1BDB00;font-size: 100%;}")),
                             
@@ -559,103 +557,6 @@ ui <- fluidPage(
           )
            
   )
-  
-  #-----------------------------------------------------------------------------------------------------------------------------------------
-  
-  
-  # ,
-  # tabPanel("Simulation",
-  # 
-  #          titlePanel("Simulating the input mutational catalogs and extracting simulated signature"),
-  #          wellPanel(id="panel_simulation_options",
-  # 
-  #                    tags$div(class="header", checked=NA,tags$h4(strong("Select the simulation method:"),
-  #                                                                style="color:#0060DB")),
-  # 
-  #                    radioButtons(inputId="simulation_method",
-  #                                 label=NA,
-  #                                 choices=list('Replace the recorded mutations with random
-  #                                              mutations without changing the positions of
-  #                                              the mutated bases across the genome.' = 1,
-  # 
-  # 
-  #                                             'Randomize the positions of the mutated bases across
-  #                                             the genome while the types of point mutations and their
-  #                                             frequencies in each chromosome are maintained without change.'= 2)
-  # 
-  #                                           ,selected = 1),
-  # 
-  #                    hr(),
-  # 
-  #                    actionButton("start_simulation", "Start simulation",class="btn-success")
-  # 
-  #          ),
-  # 
-  # 
-  #          shinyjs::hidden(
-  #            wellPanel(id="panel_3mer_options_for_simulation",
-  #                      tags$div(class="header", checked=NA,tags$h4(strong("Select the accuracy level:"),
-  #                                                                  style="color:#0060DB")),
-  #                      radioButtons(inputId="accuracy_3mer_for_simulation",
-  #                                   label=NA,
-  #                                   choices=c('Moderate','High','Very High')),#,'Custom')),
-  # 
-  # 
-  # 
-  # 
-  # 
-  # 
-  #                      conditionalPanel("input.accuracy_3mer_for_simulation == 'Moderate'",
-  #                                       tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-4")),
-  #                                       tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.1")),hr()),
-  # 
-  #                      conditionalPanel("input.accuracy_3mer_for_simulation == 'High'",
-  #                                       tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-5")),
-  #                                       tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.05")),hr()),
-  # 
-  #                      conditionalPanel("input.accuracy_3mer_for_simulation == 'Very High'",
-  #                                       tags$div(class="header", checked=NA,tags$h5("==> NMF convergence threshold = 1e-6")),
-  #                                       tags$div(class="header", checked=NA,tags$h5("==> Bootstrap convergence threshold = 0.01")),hr()),
-  # 
-  # 
-  # 
-  # 
-  #                      # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
-  #                      #                  sliderInput("NMF_iters_3mer_for_simulation", "Number of iterations for NMF step",
-  #                      #                              min = 10, max = 1000000,
-  #                      #                              value = 10, step = 1000)),
-  # 
-  #                      # conditionalPanel("input.accuracy_3mer_for_simulation == 'Custom'",
-  #                      #                  sliderInput("Boot_iters_3mer_for_simulation", "Number of iterations for Bootstrap step",
-  #                      #                              min = 10, max = 500,
-  #                      #                              value = 10, step = 10)),
-  # 
-  #                      fluidRow(column(6,actionButton("3mer_for_simulation", "Start",width = '150px',class="btn-success")))
-  #            )
-  # 
-  #          ),
-  # 
-  # 
-  #            shinyjs::hidden(
-  #              wellPanel(id="panel_3mer_results_sig_for_simulation",
-  #                        lapply(1:30, function(i) {plotOutput(paste0('p_3mer_for_simulation', i))}),
-  #                        hr(),
-  #                        downloadButton("down_sig_plot_3mer_for_simulation", "Download the plots",class="btn-primary")
-  #              )
-  #            ),
-  # 
-  #          shinyjs::hidden(
-  #            wellPanel(id='final_message_simulation',
-  #                      tags$div(class="header", checked=NA,
-  #                               tags$h4(strong('You can find the results in this directory: output/simulation/method1(or 2)'),
-  #                                       style="color:#0060DB"))
-  #            )
-  #          )
-  # 
-  # )
-  
-  
-  
   )
   )
   )
@@ -674,129 +575,91 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  observeEvent(input$see_input_file_name,{
-    shinyjs::hide("error_for_input_file_name")
-    if(isolate(input$input_data_file_name) == '')
-    {
-      shinyjs::show("error_for_input_file_name")
-      output$error_for_input_file_name <- renderText({paste0('Type the input file name above.')})
-    } else {
-      shinyjs::hide("error_for_input_file_name")
-      input_file_name <- isolate(input$input_data_file_name)
-      if(!file.exists(paste0('data/',input_file_name)))
-      {
-        shinyjs::show("error_for_input_file_name")
-        output$error_for_input_file_name <- renderText({paste0('Error: The file "',input_file_name,'" does not exist in the "Data folder".')})
-      } else {
-        shinyjs::hide("error_for_input_file_name")
-        shinyjs::disable("panelA")
-        withProgress(message = 'Importing data', value = 0.5,{
-          input_table <<- fread(paste0('data/',input_file_name),sep = '\t',header = T)  # A global variable
-          input_table <<- data.frame(input_table)
-          if(length(dim(input_table)) >= 2  & dim(input_table)[2] == 1)
-          {
-            input_table <<- fread(paste0('data/',input_file_name),sep = ',',header = T)
-            input_table <<- data.frame(input_table)
-          }
-          setProgress(1, detail = paste0("finished"))
-        })
-        if(length(dim(input_table)) < 2)
-        {
-          shinyjs::show("error_for_input_file_name")
-          output$error_for_input_file_name <- renderText({paste0('Error: File format is not valid.')})
-          shinyjs::enable("panelA")
+    observeEvent(input$see_input_file_name,{
+        if(isolate(input$input_data_file_name) == ''){
+            sendSweetAlert(
+                session = session,
+                title = "Error",
+                text = 'Type the input file name.',
+                type = "error"
+            )
         } else {
-          shinyjs::hide("error_for_input_file_name")
-
-            
-            
-            
-          # data_format <<- isolate(input$file_format)   # A global variable
-          
-          # if(data_format == 'ICGC'){
-          #   # ICGC format: ----------------------------------------------
-          #   required_col_names <- ICGC_required_columns
-          #   if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names)){
-          #     shinyjs::show("error_for_input_file_name")
-          #     output$error_for_input_file_name <- renderText({paste0('Error: Some required columns are missing in the input data.')})
-          #     shinyjs::enable("panelA")
-          #   } else {
-          #     shinyjs::hide("error_for_input_file_name")
-          #     shinyjs::show("success_for_input_file_name")
-          #     output$success_for_input_file_name <- renderText({paste0('The input data imported successfully.')})
-          #     shinyjs::disable("panelA")
-          #     shinyjs::show("panelB")
-          #   }
-            
-            
-          # } else if(data_format == 'TCGA') {
-          #   shinyjs::alert("TCGA is not currently supported. We will solve it very soon! :)")
-          #   shinyjs::enable("panelA")
-            
-            
-          # } else if (data_format == 'Other') {
-            required_col_names <- Standard_columns
-            if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names))
-            {
-              shinyjs::show("error_for_input_file_name")
-              output$error_for_input_file_name <- renderText({paste0('Error: Some required columns are missing in the input data.')})
-              shinyjs::enable("panelA")
+            input_file_name <- isolate(input$input_data_file_name)
+            if(!file.exists(paste0('data/',input_file_name))){
+                sendSweetAlert(
+                    session = session,
+                    title = "Error",
+                    text = paste0('The file "',input_file_name,'" does not exist in the ./data/ directory.'),
+                    type = "error"
+                )
             } else {
-              shinyjs::hide("error_for_input_file_name")
-              shinyjs::show("success_for_input_file_name")
-              output$success_for_input_file_name <- renderText({paste0('The input data imported successfully.')})
-              shinyjs::disable("panelA")
-              shinyjs::show("panelB")
+                shinyjs::disable("panelA")
+                withProgress(message = 'Importing data', value = 0.5,{
+                    input_table <<- fread(paste0('data/',input_file_name),sep = '\t',header = T)  # A global variable
+                    input_table <<- data.frame(input_table)
+                    if(length(dim(input_table)) >= 2  & dim(input_table)[2] == 1){
+                        input_table <<- fread(paste0('data/',input_file_name),sep = ',',header = T)
+                        input_table <<- data.frame(input_table)
+                    }
+                    setProgress(1, detail = paste0("finished"))
+                })
+                if(length(dim(input_table)) < 2){
+                    sendSweetAlert(
+                        session = session,
+                        title = "Error",
+                        text = 'File format is not valid.',
+                        type = "error"
+                    )
+                    shinyjs::enable("panelA")
+                } else {
+                    required_col_names <- Standard_columns
+                    if(length(intersect(colnames(input_table),required_col_names)) != length(required_col_names)){
+                        sendSweetAlert(
+                            session = session,
+                            title = "Error",
+                            text = 'Some required columns are missing in the input data.',
+                            type = "error"
+                        )
+                        shinyjs::enable("panelA")
+                    } else {
+                        
+                        shinyjs::show("success_for_input_file_name")
+                        output$success_for_input_file_name <- renderText({paste0('The input data imported successfully.')})
+                        
+                        shinyjs::disable("panelA")
+                        shinyjs::show("panelB")
+                    }
+                }
             }
-          # }
-        }
-      }
-    } 
-  })
+        } 
+    })
   
             
   
 
-  observeEvent(input$continue_with_preprocessing,{
-    shinyjs::disable("panelB")
-          
-    # Clearing the contents of "result" and "output" folders ------------------
-    setwd('result')
-        unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-    setwd('..')
-    setwd('output')
-        setwd('signatures')
-            setwd('5_mer')
-                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-            setwd('..')
-            setwd('3_mer')
-                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-            setwd('..')
-        setwd('..')
-        
-        setwd('clustering')
+    observeEvent(input$continue_with_preprocessing,{
+        shinyjs::disable("panelB")
+              
+        # Clearing the contents of "result" and "output" folders ------------------
+        setwd('result')
             unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
         setwd('..')
+        setwd('output')
+            setwd('signatures')
+                setwd('5_mer')
+                    unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+                setwd('..')
+                setwd('3_mer')
+                    unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+                setwd('..')
+            setwd('..')
+            
+            setwd('clustering')
+                unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
+            setwd('..')
+        setwd('..')
+        # -------------------------------------------------------------------------
         
-        # setwd('simulation')
-        #     setwd('method1')
-        #         unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-        #     setwd('..')
-        #     setwd('method2')
-        #         unlink(list.files(pattern = "\\.*$"),recursive = TRUE)
-        #     setwd('..')
-        # setwd('..')
-    setwd('..')
-    # -------------------------------------------------------------------------
-    
-    
-    
-    # how_many <- isolate(input$how_many_cancers)
-    # if(how_many == 1) {   # "Single Cancer Type" = 1
-    #   Max_N <<- 10
-    # } else if(how_many ==  2) {   # "Multiple Cancer Types" = 2
-    #   Max_N <<- 30
-    # }
     
     
     number_of_cpu_cores <<- isolate(input$CPU_cores)
@@ -807,48 +670,24 @@ server <- function(input, output, session) {
     
     withProgress(message = 'Preprocessing input data', value = 0,{
       
-      setProgress(0.1, detail = 'Preparing the input table...')
-      # if(data_format == 'ICGC')
-      # {
-      #   required_col_names <- ICGC_required_columns
-      #   input_table <<- input_table[,required_col_names]
-      #   
-      #   # remove invalid rows ---------------------------------
-      #   invalid_rows <- c()
-      #   invalid_rows <- c(invalid_rows,which(input_table[,'chromosome_end'] - input_table[,'chromosome_start'] != 0))
-      #   if(length(invalid_rows) !=0 ){input_table <<- input_table[-invalid_rows,]}    # remove
-      #   
-      #   # remove invalid columns ------------------------------
-      #   invalid_colnames <- c('chromosome_end')
-      #   invalid_columns <- as.numeric(sapply(invalid_colnames,function(n){which(colnames(input_table) == n)}))
-      #   
-      #   input_table <<- input_table[,-invalid_columns] # remove
-      #   
-      #   # set the column names --------------------------------
-      #   colnames(input_table) <- c('sample_id','chromosome','position','reference','mutated_to')
-      #   
-      #   input_table <<- unique(input_table)
-      # 
-      # } else if(data_format == 'Other') {
+        setProgress(0.1, detail = 'Preparing the input table...')
+        
         required_col_names <- Standard_columns
         input_table <<- input_table[,required_col_names]
         invalid_rows <- c()
         invalid_rows <- c(invalid_rows,    which(input_table[,'reference'] == '-' | input_table[,'mutated_to'] == '-')    )
         if(length(invalid_rows) !=0 ){input_table <<- input_table[-invalid_rows,]}    # remove
         input_table <<- unique(input_table)
-      # }
-      
-      
-      
-      write.table(input_table,'result/input_table.csv',sep = ',',col.names = T,row.names = F)
-      
-      # Now the input_table is ready for counting mutations:
-      input_table_file_name <- 'input_table'
-      save_M5mer <- T
-      M5mer_file_name <- 'M5mer'
-      save_M3mer <- T
-      M3mer_file_name <- 'M3mer'
-      source('src/CountMutations.R',local = TRUE) # After this step, counts of 3mer and 5mer are placed in "result" folder...
+        
+        write.table(input_table,'result/input_table.csv',sep = ',',col.names = T,row.names = F)
+        
+        # Now the input_table is ready for counting mutations:
+        input_table_file_name <- 'input_table'
+        save_M5mer <- T
+        M5mer_file_name <- 'M5mer'
+        save_M3mer <- T
+        M3mer_file_name <- 'M3mer'
+        source('src/CountMutations.R',local = TRUE) # After this step, counts of 3mer and 5mer are placed in "result" folder...
     })
     
     
@@ -858,12 +697,6 @@ server <- function(input, output, session) {
   }) 
             
             
-            
-            
-            
-          
-  
-  
   observeEvent(input$skip_preprocessing,{
     shinyjs::disable("panelA")
     shinyjs::show("panelC")
@@ -1049,12 +882,27 @@ server <- function(input, output, session) {
       mtext("Number of mutational signatures",side=1,col="black",line=2.5)
       
   }    
+  
+  
   output$download_3mer_eval <- downloadHandler(
           filename = function() { paste0('Evaluation_diagram(for 3-mer signatures).pdf') },
           content = function(file) {
               withProgress(message = 'Downloading...', value = 0.5,{
-                  ggsave(file, plot = plot_eval_diagram_3mer(), device = "pdf")
-                  setProgress(1)
+                  
+                  k_mer <- 3
+                  destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
+                  if( ! file.exists(paste0(destination_folder,"Evaluation.txt"))){
+                      sendSweetAlert(
+                          session = session,
+                          title = "Error",
+                          text = paste0('Evaluation file does not exist. Make sure that the required file is inside ./output/',
+                                        k_mer,'_mer/ directory.'),
+                          type = "error"
+                      )
+                  } else {
+                      ggsave(file, plot = plot_eval_diagram_3mer(), device = "pdf")
+                      setProgress(1)
+                  } 
               })
           }
   )
@@ -1062,12 +910,12 @@ server <- function(input, output, session) {
   
   
   
-  # num_3mer_sigs
-  plot_sigs_3mer <- function(){
+  
+  plot_sigs_3mer <- function(selected_N){
       k_mer <- 3
       destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
       source('src/Plot3merSignatures.R',local = TRUE)
-      plt <- plot_signatures_3mer(9)
+      plt <- plot_signatures_3mer(selected_N)
       for(p in plt){
           plot(p)
       }
@@ -1076,24 +924,48 @@ server <- function(input, output, session) {
       filename = function() { paste0('Signatures(3-mer).pdf') },
       content = function(file) {
           withProgress(message = 'Downloading...', value = 0.5,{
-              ggsave(file, plot = plot_sigs_3mer(), device = "pdf", width = 18, height = 5)
-              setProgress(1)
+              
+              k_mer <- 3
+              destination_folder <- paste0("output/signatures/",as.character(k_mer),"_mer/")
+              selected_N <- as.numeric(input$num_3mer_sigs)
+              if( ! file.exists(paste0(destination_folder,"P-n-",selected_N,".txt"))){
+                  sendSweetAlert(
+                      session = session,
+                      title = "Error",
+                      text = paste0('Signature file for N = ',selected_N,
+                                    ' does not exist. Make sure that the required file is inside ./output/',k_mer,'_mer/ directory.'),
+                      type = "error"
+                  )
+              } else {
+                  ggsave(file, plot = plot_sigs_3mer(selected_N), device = "pdf", width = 18, height = 5)
+                  setProgress(1)
+              }
           })
       }
   )
 
-  
-  
-  # plot_eval_diagram <- function()
-  # {
-
-  # }
-  # 
-  # pdf(paste0(destination_folder,"Evaluation_diagram.pdf"))
-  # plot_eval_diagram()
-  # dev.off()
-
-
+  output$download_files_3mer <- downloadHandler(
+      filename = function() {
+          paste("3mer_signature_analysis_results", "zip", sep=".")
+      },
+      content = function(fname) {
+          k_mer <- 3
+          if(length(list.files(paste0('output/signatures/',k_mer,'_mer/'))) == 0){
+              sendSweetAlert(
+                  session = session,
+                  title = "Error",
+                  text = paste0('directory ./output/signatures/',k_mer,'_mer/ is empty.'),
+                  type = "error"
+              )
+          } else {
+              setwd(paste0('output/signatures/',k_mer,'_mer/'))
+              fs <- list.files()
+              zip(zipfile=fname, files=fs)
+              setwd('../../..')
+          }
+      },
+      contentType = "application/zip"
+  )
   
   
   
