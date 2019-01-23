@@ -19,24 +19,27 @@ M <- simplify2array(read.table(paste0("result/",file_name,".csv"), sep = ","))
 
 M <- matrix(as.numeric(M),dim(M)[1])
 
-num_motifs <- dim(M)[1]
-
+sum_of_mutations <- colSums(M)
+zero_samples <- which(sum_of_mutations == 0)
+if(length(zero_samples) != 0)                 # If there are samples zero value for all mutation types, we delete them at this step.
+{                                             # At the end, we again include these samples by inserting sxtra zero columns into matrix E. 
+  M <- M[,-zero_samples]
+}
 
 if(k_mer == 5) {
   G <- dim(M)[2] - 1  
   M <- M[,-1]
   M <- matrix(M,ncol = G)
+} else if(k_mer == 3) {
+  G <- dim(M)[2]
 }
-
-sum_of_mutations <- colSums(M)
-zero_samples <- which(sum_of_mutations == 0)
-if(length(zero_samples) != 0)                 # If there are samples zero value for all mutation types, we delete them at this step.
-{                                             # At the end, we again include these samples by inserting sxtra zero columns into matrix E. 
-    M <- M[,-zero_samples]
-}
-
-G <- dim(M)[2]
 len <- dim(M)[1]
+
+
+
+
+
+
 
 
 #####################################################################
@@ -89,18 +92,18 @@ cat("Dimension Reduction done\n")
 
 
 # \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
-# NMF_total_max <- 5000                                   # maximum number of NMF iterations
-# NMF_iters <- 1000                                       # number of NMF iterations in each epoch
-# NMF_max_epoches <- ceiling(NMF_total_max/NMF_iters)     # fine tune the maximum number of NMF
-# NMF_conv <- 1e-2                                        # stop criteria for NMF
-# 
-# Boot_total_max <- 100                                   # maximum number of bootstrap iterations
-# Boot_iters <- max(20,number_of_cpu_cores)               # number of bootstrap iterations in each epoch
-# Boot_max_epoches <- ceiling(Boot_total_max/Boot_iters)  # fine tune the maximum number of bootstraps
-# Boot_conv <- 1e-2                                       # stop criteria for bootstrap
-# 
-# start_N <- 1
-# Max_N <- 12
+NMF_total_max <- 5000                                   # maximum number of NMF iterations
+NMF_iters <- 1000                                       # number of NMF iterations in each epoch
+NMF_max_epoches <- ceiling(NMF_total_max/NMF_iters)     # fine tune the maximum number of NMF
+NMF_conv <- 1e-2                                        # stop criteria for NMF
+
+Boot_total_max <- 100                                   # maximum number of bootstrap iterations
+Boot_iters <- max(20,number_of_cpu_cores)               # number of bootstrap iterations in each epoch
+Boot_max_epoches <- ceiling(Boot_total_max/Boot_iters)  # fine tune the maximum number of bootstraps
+Boot_conv <- 1e-2                                       # stop criteria for bootstrap
+
+start_N <- 1
+Max_N <- 12
 
 increment_progress_by <- 0.99/(3*Max_N+1)
 # \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
@@ -491,15 +494,9 @@ for(N in c(start_N:Max_N))
   
   
   
-  
-  P <- matrix(rep(0,num_motifs*N),ncol = N)
-  centroids <- t(centroids)
+  P <- matrix(rep(0,96*N),ncol = N)
   for(i in 1:N){P[remaining_mut_types, i] <- centroids[, i]}
-  
-  P <- as.data.table(P)
-  colnames(P) <- paste0('Signature_No_',1:dim(P)[2])
-  
-  fwrite(P, paste0(destination_folder,k_mer,"mer_Signatures_(N=",as.character(N),").tsv"),sep = '\t', col.names = T, row.names = F)
+  write.table(P, paste0(destination_folder,"P-n-",as.character(N),".txt"))
   
   
   
@@ -510,15 +507,7 @@ for(N in c(start_N:Max_N))
     exposures_complete[,-zero_samples] <- exposures
     exposures <- exposures_complete
   }
-  exposures <- t(exposures)
-  exposures <- as.data.table(exposures)
-  sample_ids <- fread('result/Sample_IDs.txt', header = F)
-  exposures <- cbind(sample_ids, exposures)
-  colnames(exposures) <- c('Sample_ID',paste0('Exposure_to_Signature_No_',1:dim(P)[2]))
-  fwrite(exposures,paste0(destination_folder,"Exposures_to_",k_mer,"mer_Signatures_(N=",as.character(N),").tsv"),sep = '\t', col.names = T, row.names = F)
-  
-  
-  
+  write.table(exposures,paste0(destination_folder,"E-n-",as.character(N),".txt"))
   
   cat('\n')
 }
@@ -537,6 +526,77 @@ for(N in c(start_N:Max_N))
 
 
 cat('\nAll calculations finished!\n')
+
+
+
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+# cat('\nPlotting the evaluation diagram...')
+# 
+# plot_eval_diagram <- function()
+# {
+#   e <- read.table(paste0(destination_folder,"Evaluation.txt"))
+#   n <- e[,1]
+#   repro <- e[,2]
+#   frobe <- e[,3]
+#   frobe <- frobe/max(frobe)
+#   
+#   ## add extra space to right margin of plot within frame
+#   par(mar=c(5, 5, 4, 6) + 0.5)
+#   
+#   ymin <- 0.1
+#   
+#   ## Plot the second plot and put axis scale on right
+#   plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
+#        type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
+#   
+#   grid(lwd = 2)
+#   
+#   ## Allow a second plot on the same graph
+#   par(new=TRUE)
+#   
+#   plot(n, frobe, pch=20,  xlab="", ylab="", ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25),
+#        axes=FALSE, type="p", col="blue",frame.plot = FALSE)
+#   ## a little farther out (line=4) to make room for labels
+#   mtext("Relative Frobenius Reconstruction Error",side=4,col="blue",line=2.5)
+#   axis(4,lwd = 2, ylim=range(frobe), col="blue",col.axis="blue",las=1)
+#   
+#   ## Allow a second plot on the same graph
+#   par(new=TRUE)
+#   
+#   ## Plot first set of data and draw its axis
+#   plot(n, repro, pch=20, axes=FALSE, ylim=c(0,1),xlim = c(n[1],n[length(n)]+0.25), xlab="", ylab="",
+#        type="p",col="red", main="Evaluation for N",frame.plot = FALSE)
+#   lines(n, repro,col='red')
+#   axis(2, lwd = 2,ylim=range(repro),col="red",col.axis="red",las=1)  ## las=1 makes horizontal labels
+#   mtext("Signatures Reproducibility",side=2,col ="red",line=3.75)
+#   
+#   ## Draw the time axis
+#   axis(1,(n[1]-1):(n[length(n)]+1))
+#   mtext("Number of mutational signatures",side=1,col="black",line=2.5)
+# }
+# 
+# pdf(paste0(destination_folder,"Evaluation_diagram.pdf"))
+# plot_eval_diagram()
+# dev.off()
+# 
+# 
+# e <- read.table(paste0(destination_folder,"Evaluation.txt"))
+# repro <- e$V2
+# Drop_in_repro <- sapply(c(1:(length(repro)-1)),function(i){return(repro[i]-repro[i+1])})
+# N_opt <- order(-Drop_in_repro)[1]
+# write.table(N_opt,file=paste0(destination_folder,"N_opt.txt"),row.names=F,col.names=F)
+# 
+# cat('Done\n')
+
 
 
 

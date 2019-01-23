@@ -9,13 +9,8 @@ library(gridExtra)
 plot_signatures_3mer <- function(N)
 {
   
-  P <- t(read.table(paste0(destination_folder,'P-n-',as.numeric(N),'.txt')))
-  for(i in 1:N){P[,i] <- P[,i] / sum(P[,i])}
-  
-  M <- matrix(rep(0,96*N),ncol = N)
-  rem <- simplify2array(read.table(paste0(destination_folder,'remaining_mut_types.txt')))
-  for(i in 1:N){M[rem,i] <- 100 * P[,i]}
-  M <- as.data.frame(M)
+  M <- fread(paste0(destination_folder,'3mer_Signatures_(N=',N,').tsv'))
+  M <- 100*M
   
   A1 <- c()
   for(i in c(0:5)) A1 <- c(A1,c(1:4)+4*0+16*i)  
@@ -55,9 +50,9 @@ plot_signatures_3mer <- function(N)
   {
     
     #top <- 0.3
-    top <- max(M[n])
+    top <- max(M[,n,with=F])
     
-    gg <- ggplot(M,aes((x=mut_indxs),y = M[n],fill = mut_types,group = mut_types))+
+    gg <- ggplot(M, aes_string(x='mut_indxs', y = paste0('Signature_No_',n), fill = 'mut_types', group = 'mut_types'))+
           geom_col(width = 0.7)+
           geom_text(aes(label=mut_id), vjust=-1.5, colour="black",size = 2)+
           theme_bw()+
@@ -79,8 +74,7 @@ plot_signatures_3mer <- function(N)
                 axis.ticks.x=element_blank(),
                 
                 axis.text.y=element_text(size = 25,angle = 90, hjust = 0.5,colour = 'black'),
-                axis.title.y=element_text(size = 25, margin = margin(t = 0, r = 20, b = 0, l = 0))#,
-                #axis.text.y=element_blank()
+                axis.title.y=element_text(size = 25, margin = margin(t = 0, r = 20, b = 0, l = 0))
                 )+
       
           theme(panel.grid.minor.y = element_blank(),

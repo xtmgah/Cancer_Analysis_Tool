@@ -90,7 +90,7 @@ M3mer <- t(simplify2array(lapply(c(0:95),function(i) colSums(M5mer[c((i*16+1):(i
 if(save_M5mer == T){fwrite(data.frame(M5mer),file=paste0('result/',M5mer_file_name,'.csv'),sep=",",col.names=FALSE,row.names=FALSE)}
 if(save_M3mer == T){fwrite(data.frame(M3mer),file=paste0('result/',M3mer_file_name,'.csv'),sep=",",col.names=FALSE,row.names=FALSE)}
 
-write.table(sample_names,'result/Samples_IDs.txt',row.names = F,col.names = F)
+write.table(sample_names,'result/Sample_IDs.txt',row.names = F,col.names = F)
 
 f <- Sys.time()
 cat(paste0(' (',format(f-s),')\n'))        
