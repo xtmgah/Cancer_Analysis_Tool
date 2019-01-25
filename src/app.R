@@ -639,37 +639,33 @@ server <- function(input, output, session) {
           accuracy <- input$accuracy_3mer
           
           if(accuracy == 'Moderate'){
-              # NMF_iters <- 1e4
-              # NMF_total_max <- 5e4
-              NMF_iters <- 1e2
-              NMF_total_max <- 1e2
+              NMF_iters <- 1e4
+              NMF_total_max <- 5e4
               NMF_conv <- 1e-4
               
-              # Boot_total_max <- 200
-              Boot_total_max <- 4
+              Boot_total_max <- 300
               Boot_conv <- 1e-1
           } else if(accuracy == 'High'){
               NMF_iters <- 1e4
               NMF_total_max <- 1e5
               NMF_conv <- 5e-5
               
-              Boot_total_max <- 400
+              Boot_total_max <- 540
               Boot_conv <- 5e-2
           } else if(accuracy == 'Very High'){
               NMF_iters <- 1e4
               NMF_total_max <- 5e5
               NMF_conv <- 1e-5
               
-              Boot_total_max <- 600
+              Boot_total_max <- 780
               Boot_conv <- 1e-2
           }
           
           NMF_max_epoches <- ceiling(NMF_total_max/NMF_iters)
-          # Boot_iters <- max(20,number_of_cpu_cores)
-          Boot_iters <- 2
+          Boot_iters <- max(20,number_of_cpu_cores)
           Boot_max_epoches <- ceiling(Boot_total_max/Boot_iters)  
           
-          start_N <- 2
+          start_N <- 1
           Max_N <- isolate(input$NMF_Max_N_3mer)
           
           k_mer <- 3
@@ -875,37 +871,33 @@ server <- function(input, output, session) {
           accuracy <- input$accuracy_5mer
           
           if(accuracy == 'Moderate'){
-              # NMF_iters <- 1e4
-              # NMF_total_max <- 5e4
-              NMF_iters <- 1e2
-              NMF_total_max <- 1e2
+              NMF_iters <- 1e4
+              NMF_total_max <- 5e4
               NMF_conv <- 1e-4
               
-              # Boot_total_max <- 200
-              Boot_total_max <- 4
+              Boot_total_max <- 300
               Boot_conv <- 1e-1
           } else if(accuracy == 'High'){
               NMF_iters <- 1e4
               NMF_total_max <- 1e5
               NMF_conv <- 5e-5
               
-              Boot_total_max <- 400
+              Boot_total_max <- 540
               Boot_conv <- 5e-2
           } else if(accuracy == 'Very High'){
               NMF_iters <- 1e4
               NMF_total_max <- 5e5
               NMF_conv <- 1e-5
               
-              Boot_total_max <- 600
+              Boot_total_max <- 780
               Boot_conv <- 1e-2
           }
           
           NMF_max_epoches <- ceiling(NMF_total_max/NMF_iters)
-          # Boot_iters <- max(20,number_of_cpu_cores)
-          Boot_iters <- 2
+          Boot_iters <- max(20,number_of_cpu_cores)
           Boot_max_epoches <- ceiling(Boot_total_max/Boot_iters)  
           
-          start_N <- 2
+          start_N <- 1
           Max_N <- isolate(input$NMF_Max_N_5mer)
           
           k_mer <- 5

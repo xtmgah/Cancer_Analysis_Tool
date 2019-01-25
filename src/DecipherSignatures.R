@@ -2,15 +2,9 @@
 cat('\n')
 cat(paste0('Deciphering ',as.character(k_mer),'-mer mutational signatures...\n'))
 
-#suppressMessages(library('parallel'))
-#local_lib_path <- paste0(getwd(),'/../R_libs')
-#.libPaths(c(.libPaths(),local_lib_path))
+
 suppressMessages(library(doParallel))
 suppressMessages(library(data.table))
-
-
-
-
 
 
 
@@ -73,9 +67,7 @@ if(length(inds) != 0)
 }
 M <- matrix(M, ncol = G)
 remaining_mut_types <- setdiff(c(1:len),inds)  # mutation types that are present after step 1
-# write.table(remaining_mut_types,
-#             file=paste0(destination_folder,"remaining_mut_types.txt"),
-#             row.names = FALSE,col.names = FALSE)
+
 rm(t,r,large,inds,s,i)
 K <- dim(M)[1]
 
@@ -87,23 +79,7 @@ cat("Dimension Reduction done\n")
 
 
 
-
-# \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
-# NMF_total_max <- 5000                                   # maximum number of NMF iterations
-# NMF_iters <- 1000                                       # number of NMF iterations in each epoch
-# NMF_max_epoches <- ceiling(NMF_total_max/NMF_iters)     # fine tune the maximum number of NMF
-# NMF_conv <- 1e-2                                        # stop criteria for NMF
-# 
-# Boot_total_max <- 100                                   # maximum number of bootstrap iterations
-# Boot_iters <- max(20,number_of_cpu_cores)               # number of bootstrap iterations in each epoch
-# Boot_max_epoches <- ceiling(Boot_total_max/Boot_iters)  # fine tune the maximum number of bootstraps
-# Boot_conv <- 1e-2                                       # stop criteria for bootstrap
-# 
-# start_N <- 1
-# Max_N <- 12
-
 increment_progress_by <- 0.99/(3*Max_N+1)
-# \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 
 
 
@@ -226,7 +202,7 @@ for(N in c(start_N:Max_N))
   {
     
     #--------------------------------------------------------------------
-    cat(paste0('----- ','Epoch ',as.character(epoch_boot),' : With bootstrapping ',as.character(Boot_iters),' times\n'))
+    cat(paste0('----- ','Epoch ',as.character(epoch_boot),' : With bootstrapping ',as.character(Boot_iters),' times (N = ',N,')\n'))
     
     cat('--------------- Performing NMF for each bootstrapped data\n')
     
@@ -237,8 +213,8 @@ for(N in c(start_N:Max_N))
     {
       cat('--------------- pushing extra results from previous epoches...')
       st_push <- Sys.time()
-      write.table(SP,'temp/SP.txt',row.names = F,col.names = F)
-      write.table(SE,'temp/SE.txt',row.names = F,col.names = F)
+      fwrite(as.data.table(SP),'temp/SP.tsv',sep = '\t',row.names = F,col.names = F)
+      fwrite(as.data.table(SE),'temp/SE.tsv',sep = '\t',row.names = F,col.names = F)
       rm("SP")
       rm("SE")
       se_push <- Sys.time()
@@ -294,20 +270,19 @@ for(N in c(start_N:Max_N))
       # Retrive the SP and SE stored in the current folder
       cat('--------------- pulling the results from previous epoches...')
       st_pull <- Sys.time()
-      SP <- as.matrix(read.table('temp/SP.txt'),header=F)
-      SE <- as.matrix(read.table('temp/SE.txt'),header=F)
-      file.remove('temp/SP.txt')
-      file.remove('temp/SE.txt')
+      suppressMessages({
+          suppressWarnings({
+              SP <- as.matrix(fread('temp/SP.tsv'),sep = '\t',header=F)
+              SE <- as.matrix(fread('temp/SE.tsv'),sep = '\t',header=F)
+          })
+      })
+      file.remove('temp/SP.tsv')
+      file.remove('temp/SE.tsv')
       se_pull <- Sys.time()
       cat(paste0('Done (after ',format(se_pull-st_pull),')\n'))
     }
     ########################################################
 
-    
-    
-    
-
-    
 
     cat('--------------- Organizing the results...')
     for(i in c(1:Boot_iters))
@@ -369,13 +344,13 @@ for(N in c(start_N:Max_N))
       {
         
         if(number_of_cpu_cores > 1) {
-          cat('-------------------------- Updating cluster assignments...')
+          # cat('-------------------------- Updating cluster assignments...')
           clst1 <- sapply(c(1:(dim(SP)[1])),min_dist)
-          cat('Done\n')
+          # cat('Done\n')
         } else {
-          cat('-------------------------- Updating cluster assignments...')
+          # cat('-------------------------- Updating cluster assignments...')
           clst1 <- sapply(c(1:(dim(SP)[1])),min_dist)
-          cat('Done\n')
+          # cat('Done\n')
         }
 
         for(i in c(1:N))
@@ -445,8 +420,8 @@ for(N in c(start_N:Max_N))
   
   
   
-  cat(paste0('----- ','Evaluating the clusters and saving the final results\n'))
-  
+  cat(paste0('----- ','Evaluating the clusters and saving the final results...'))
+  st_eval <- Sys.time()
   ## Step 6 (Evaluate)
   incProgress(increment_progress_by, detail = paste0("N = ",as.character(N)," : Evaluation of clustering result..."))
   
@@ -457,7 +432,8 @@ for(N in c(start_N:Max_N))
     members <- which(clst1==j)
     return((sum(sapply(members,function(t) ang_dis(SP[i,],SP[t,]))))/length(members))
   }
-  silh_width <- function(i)  # silhouette width of cluster i
+  
+  silh_width_of_obj <- function(i)  # silhouette width of object i
   {
     a <- avg_dist_from_clst(i,clst1[i])
     out_avgs <- sapply(setdiff(c(1:N),clst1[i]),function(t) avg_dist_from_clst(i,t))
@@ -469,10 +445,24 @@ for(N in c(start_N:Max_N))
     }
     return((b-a)/(max(a,b)))
   }
-  avg_silh_widths <- mean(sapply(c(1:(dim(SP)[1])),silh_width))  # average silhouette width of the whole clustering
+  
+  silh_width_of_clst <- function(i) # silhouette width of cluster i
+  {
+      return(mean(sapply(which(clst1 == i),silh_width_of_obj)))
+  }
+ 
+  silh_width_of_clusters <- sapply(1:N, silh_width_of_clst) # silhouette widths of all clusters
+  
+  # average silhouette width --> reproducibility
+  avg_silh_widths <- mean(silh_width_of_clusters)
   
   exposures <- matrix(0,N,G)          # contruct matrix E according to clustering of P
   for(i in c(1:N)) {exposures[i,] <- colMeans(matrix(SE[which(clst1 == i),],length(which(clst1 == i))))}
+  
+  # change the order of results based on silhouette  of clusters
+  ord <- order(silh_width_of_clusters, decreasing = T)
+  centroids <- centroids[ord,]
+  exposures <- exposures[ord,]
   
   M.re <- t(centroids) %*% exposures # reconstruct M
   re.E <- norm((M - M.re),type = 'F')   # Reconstruction error
@@ -519,7 +509,8 @@ for(N in c(start_N:Max_N))
   
   
   
-  
+  et_eval <- Sys.time()
+  cat(paste0('Done (after ',format(et_eval-st_eval),')\n'))
   cat('\n')
 }
 
