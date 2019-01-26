@@ -460,9 +460,11 @@ for(N in c(start_N:Max_N))
   for(i in c(1:N)) {exposures[i,] <- colMeans(matrix(SE[which(clst1 == i),],length(which(clst1 == i))))}
   
   # change the order of results based on silhouette  of clusters
-  ord <- order(silh_width_of_clusters, decreasing = T)
-  centroids <- centroids[ord,]
-  exposures <- exposures[ord,]
+  if(N != 1){
+      ord <- order(silh_width_of_clusters, decreasing = T)
+      centroids <- centroids[ord,]
+      exposures <- exposures[ord,]
+  }
   
   M.re <- t(centroids) %*% exposures # reconstruct M
   re.E <- norm((M - M.re),type = 'F')   # Reconstruction error
