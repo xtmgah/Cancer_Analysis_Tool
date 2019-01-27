@@ -62,7 +62,7 @@ Preprocessing tab
 -----------------
 This is the first thing you will see when the user-interface is opened. It is assumed that you have put your input file in the **_data_** folder and now you need to introduce it to the tool by writing its name (with extension) in the field at the top of the page. 
 
-The valid input file for CANCERSIGN must contain the following fields:
+The valid input file for CANCERSIGN is comma-separated (.csv) or tab-separated (.tsv) and must contain the following fields:
 
 1. **sample_id**
 2. **chromosome**
