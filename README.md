@@ -72,8 +72,7 @@ The valid input file for CANCERSIGN is comma-separated (.csv) or tab-separated (
     
 After specifying the input data file, you can click on the green button to start preprocessing. When this step is performed, the results are stored in the **_result_** folder and its old files are deleted. The contents of the **_output_** folder are also cleared. However, the user may want to repeat running the tool to perform various analyses for the same data. In such cases, the preprocessing results can remain in the **_result_** folder and the user can bypass the preprocessing step by clicking on the orange button. The user is then asked whether he wants to preserve the contents of the **_output_** folder or let them be erased for subsequent runs.
 
-![2 with arrows](https://user-images.githubusercontent.com/16561858/30988310-ed844d16-a4a6-11e7-9cbe-aafbb1dddb09.png)
-
+![screen shot 2019-01-27 at 8 08 13 pm](https://user-images.githubusercontent.com/16561858/51803986-6c4a4900-2270-11e9-8de8-2c450e0fd3b3.png)
 
 3-mer signatures tab
 -----------------
